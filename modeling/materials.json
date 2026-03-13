@@ -1,0 +1,44 @@
+{
+    "optical_materials": {
+        "UTC-025R-NANN": {
+            "solar_absorptivity": 0.5,
+            "infrared_emissivity": 0.6,
+            "transmittance": 0.0
+        },
+        "Z306": {
+            "solar_absorptivity": 0.9,
+            "infrared_emissivity": 0.9,
+            "transmittance": 0.0
+        },
+        "PCB": {
+            "solar_absorptivity": 0.7,
+            "infrared_emissivity": 0.8,
+            "transmittance": 0.0
+        },
+        "A6061 Arodine": {
+            "solar_absorptivity": 0.01,
+            "infrared_emissivity": 0.01,
+            "transmittance": 0.0
+        }
+    },
+    "physical_materials": {
+        "CEPRA": {
+            "thickness": 0.001,
+            "density": 2000.0,
+            "specific_heat": 1000.0,
+            "thermal_conductivity": 0.35
+        },
+        "PCB": {
+            "thickness": 0.0016,
+            "density": 2000.0,
+            "specific_heat": 900.0,
+            "thermal_conductivity": 20.0
+        },
+        "A6061": {
+            "thickness": 0.002,
+            "density": 2700.0,
+            "specific_heat": 900.0,
+            "thermal_conductivity": 170.0
+        }
+    }
+}

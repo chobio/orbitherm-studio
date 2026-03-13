@@ -1,0 +1,165 @@
+# -*- coding: utf-8 -*-
+"""
+Defeaturing: 穴（直径6.5mm以下）とフィレット（R4以下）をまとめて削除するマクロ
+
+使い方:
+  1. Part ワークベンチで、対象オブジェクト（STEP等）を選択
+  2. マクロを実行（マクロ → マクロの実行、またはツールバーに登録して実行）
+  3. 新しいオブジェクト "Defeatured" が作成されます（元オブジェクトは変更しません）
+
+条件:
+  - 穴: 円筒面で直径 6.5 mm 以下（半径 3.25 mm 以下）を削除
+  - フィレット: トーラス面で R 4 mm 以下（MinorRadius <= 4）を削除
+"""
+
+import FreeCAD
+import Part
+
+# --- 設定（必要に応じて変更）---
+HOLE_MAX_RADIUS_MM = 6.5 / 2.0   # 穴: 直径6.5mm → 半径 3.25mm
+FILLET_MAX_RADIUS_MM = 4.0       # フィレット: R4以下
+
+
+def _is_hole_face(face):
+    """穴の円筒面かどうか（半径 <= HOLE_MAX_RADIUS_MM）"""
+    try:
+        surf = face.Surface
+        if surf is None:
+            return False
+        # Part.Cylinder / GeomCylinder
+        r = getattr(surf, "Radius", None)
+        if r is not None and float(r) <= HOLE_MAX_RADIUS_MM:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _is_fillet_face(face):
+    """フィレットのトーラス面かどうか（MinorRadius <= FILLET_MAX_RADIUS_MM）"""
+    try:
+        surf = face.Surface
+        if surf is None:
+            return False
+        # GeomToroidalSurface: フィレットR = MinorRadius
+        minor_r = getattr(surf, "MinorRadius", None)
+        if minor_r is not None and float(minor_r) <= FILLET_MAX_RADIUS_MM:
+            return True
+        # 一部のバージョンでは Radius2 の名前の場合あり
+        r2 = getattr(surf, "Radius2", None)
+        if r2 is not None and float(r2) <= FILLET_MAX_RADIUS_MM:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _collect_faces_to_remove(shape):
+    """形状から削除対象の面（穴・フィレット）を収集"""
+    to_remove = []
+    try:
+        faces = getattr(shape, "Faces", None) or []
+    except Exception:
+        return to_remove
+    for f in faces:
+        if _is_hole_face(f):
+            to_remove.append(f)
+        elif _is_fillet_face(f):
+            to_remove.append(f)
+    return to_remove
+
+
+def _defeature_solid(solid):
+    """単一ソリッドに対してデフィーチャリングを実行"""
+    faces_to_remove = _collect_faces_to_remove(solid)
+    if not faces_to_remove:
+        return solid
+    try:
+        if hasattr(solid, "defeaturing"):
+            return solid.defeaturing(faces_to_remove)
+    except Exception as e:
+        FreeCAD.Console.PrintWarning("Defeaturing の一部でエラー: {}\n".format(e))
+    return solid
+
+
+def run_defeaturing():
+    doc = FreeCAD.ActiveDocument
+    if not doc:
+        FreeCAD.Console.PrintError("アクティブなドキュメントがありません。\n")
+        return
+
+    sel = FreeCAD.Gui.Selection.getSelectionEx()
+    if not sel:
+        FreeCAD.Console.PrintError("オブジェクトを1つ選択してから実行してください。\n")
+        return
+
+    obj = sel[0].Object
+    try:
+        shape = obj.Shape
+    except Exception as e:
+        FreeCAD.Console.PrintError("形状を取得できません: {}\n".format(e))
+        return
+
+    if not shape or not getattr(shape, "Faces", None):
+        FreeCAD.Console.PrintError("選択したオブジェクトに面がありません。Part ソリッドを選択してください。\n")
+        return
+
+    # 複数ソリッドの場合はソリッドごとにデフィーチャリングしてから結合
+    solids = getattr(shape, "Solids", None) or []
+    if not solids and getattr(shape, "Solid", None):
+        solids = [shape.Solid]
+    if not solids:
+        # 単一形状として Faces を持つ場合（Compound 等）
+        faces_to_remove = _collect_faces_to_remove(shape)
+        if not faces_to_remove:
+            FreeCAD.Console.PrintMessage("削除対象の穴・フィレット面は見つかりませんでした。\n")
+            return
+        FreeCAD.Console.PrintMessage("削除対象: {} 面（穴・フィレット）\n".format(len(faces_to_remove)))
+        try:
+            new_shape = shape.defeaturing(faces_to_remove)
+        except Exception as e:
+            FreeCAD.Console.PrintError("Defeaturing に失敗しました: {}\n".format(e))
+            return
+    else:
+        # ソリッドごとに処理
+        new_solids = []
+        total_removed = 0
+        for solid in solids:
+            faces_to_remove = _collect_faces_to_remove(solid)
+            total_removed += len(faces_to_remove)
+            if faces_to_remove:
+                try:
+                    new_solids.append(solid.defeaturing(faces_to_remove))
+                except Exception as e:
+                    FreeCAD.Console.PrintWarning("ソリッドの Defeaturing でスキップ: {}\n".format(e))
+                    new_solids.append(solid)
+            else:
+                new_solids.append(solid)
+
+        if total_removed == 0:
+            FreeCAD.Console.PrintMessage("削除対象の穴・フィレット面は見つかりませんでした。\n")
+            return
+        FreeCAD.Console.PrintMessage("削除対象: 合計 {} 面（穴・フィレット）\n".format(total_removed))
+
+        if len(new_solids) == 1:
+            new_shape = new_solids[0]
+        else:
+            new_shape = Part.Compound(new_solids)
+
+    # 新しいオブジェクトとして追加
+    name = "Defeatured"
+    if doc.getObject(name):
+        name = name + "_001"
+        while doc.getObject(name):
+            base = name.rsplit("_", 1)[0]
+            num = int(name.split("_")[-1]) + 1
+            name = "{}_{:03d}".format(base, num)
+    new_obj = doc.addObject("Part::Feature", name)
+    new_obj.Label = "Defeatured"
+    new_obj.Shape = new_shape
+    doc.recompute()
+    FreeCAD.Console.PrintMessage("オブジェクト '{}' を作成しました。\n".format(new_obj.Label))
+
+
+# マクロ実行時に呼ばれる
+run_defeaturing()
