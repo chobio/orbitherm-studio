@@ -107,7 +107,23 @@ def _hover_callback(*args):
             from ThermalAnalysis.modeling import core
             core.clear_hover_label(doc)
             return
-        view = FreeCADGui.ActiveDocument.ActiveView
+        # アクティブビュー取得（MultiView 環境などで ActiveView が None の場合に備えてドキュメント名からも取得）
+        view = None
+        try:
+            view = FreeCADGui.ActiveDocument.ActiveView
+        except Exception:
+            view = None
+        if (not view or not hasattr(view, "getObjectInfo")) and doc:
+            try:
+                gui_doc = FreeCADGui.getDocument(doc.Name)
+                if gui_doc:
+                    view = getattr(gui_doc, "ActiveView", view)
+            except Exception:
+                pass
+        if not view:
+            from ThermalAnalysis.modeling import core
+            core.clear_hover_label(doc)
+            return
         get_info = getattr(view, "getObjectInfo", None)
         if not get_info and hasattr(view, "getViewer"):
             viewer = view.getViewer()
@@ -146,6 +162,15 @@ def _hover_callback(*args):
             return
         from ThermalAnalysis.modeling import core
         display_obj, surf, node = core.resolve_hover_object(target_doc, obj)
+        # デバッグ用ログ（ユーザ設定 HoverLabelDebugEnabled が True のときのみ）
+        try:
+            p = FreeCAD.ParamGet("User parameter:Base/App/Preferences/Mod/ThermalAnalysis")
+            if p.GetBool("HoverLabelDebugEnabled", False):
+                FreeCAD.Console.PrintMessage(
+                    f"ThermalAnalysis hover: viewObj={obj_name}, surf={surf}, node={node}, infoKeys={list(info.keys())}\n"
+                )
+        except Exception:
+            pass
         if display_obj is None or (surf is None and node is None):
             core.clear_hover_label(doc)
             return
@@ -1174,11 +1199,12 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
         _workbench_class = self.__class__
         QtCore.QTimer.singleShot(0, lambda: _workbench_class._register_hover_on_active_view())
         # アクティブドキュメント切り替え時にもホバーを登録（後からドキュメントを開いた場合に対応）
-        if not getattr(ThermalAnalysisWorkbench, "_ra_hover_observer_added", False):
+        cls = self.__class__
+        if not getattr(cls, "_ra_hover_observer_added", False):
             try:
                 _HoverDocObserver._workbench_class = _workbench_class
                 FreeCAD.addDocumentObserver(_HoverDocObserver())
-                ThermalAnalysisWorkbench._ra_hover_observer_added = True
+                cls._ra_hover_observer_added = True
             except Exception:
                 pass
     @classmethod
@@ -1194,11 +1220,28 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
                 cls._ra_hover_callback_id = None
                 cls._ra_hover_view = None
             view = FreeCADGui.ActiveDocument.ActiveView if (FreeCAD.ActiveDocument and FreeCADGui.ActiveDocument) else None
+            target = None
             if view and hasattr(view, "addEventCallback"):
-                cid = view.addEventCallback("SoLocation2Event", cls._ra_hover_callback_fn)
-                cls._ra_hover_callback_id = cid
-                cls._ra_hover_view = view
+                target = view
+            elif view and hasattr(view, "getViewer"):
+                try:
+                    viewer = view.getViewer()
+                except Exception:
+                    viewer = None
+                if viewer and hasattr(viewer, "addEventCallback"):
+                    target = viewer
+            if target:
+                try:
+                    cid = target.addEventCallback("SoLocation2Event", cls._ra_hover_callback_fn)
+                    cls._ra_hover_callback_id = cid
+                    cls._ra_hover_view = target
+                    FreeCAD.Console.PrintMessage(f"ThermalAnalysis: ホバーコールバックを登録しました (target={target}, cid={cid}).\n")
+                except Exception as e:
+                    FreeCAD.Console.PrintWarning(f"ThermalAnalysis: ホバーコールバック登録に失敗しました: {e}\n")
+                    cls._ra_hover_callback_id = None
+                    cls._ra_hover_view = None
             else:
+                FreeCAD.Console.PrintWarning("ThermalAnalysis: ホバー用の 3D ビュー/ビューワーが見つからないか、addEventCallback に対応していません。\n")
                 cls._ra_hover_callback_id = None
                 cls._ra_hover_view = None
         except Exception:
