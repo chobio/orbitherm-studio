@@ -1,4 +1,32 @@
 # core.py (バージョン 5.2)
+"""
+COMPATIBILITY INTEGRATION MODULE — DO NOT ADD NEW LOGIC HERE
+=============================================================
+This file is a temporary integration layer that exists during
+an ongoing wrapper-first refactoring of the ThermalAnalysis
+workbench.  It currently hosts code that belongs in separate
+modules but has not yet been physically moved.
+
+Planned final destinations
+--------------------------
+- modeling/core.py       → keep only MODEL BUILDING and
+                           CONDUCTANCE / RADIATION CALCULATION
+- post/                  → all DISPLAY / VISUALIZATION logic
+                           (see section marker below)
+- bridge/exporter.py     → SOLVER FILE EXPORT helpers
+
+Rules for contributors
+----------------------
+- Do NOT add new display/visualization logic here; add it
+  directly to post/ instead.
+- Do NOT add new solver-export logic here; add it to
+  bridge/exporter.py instead.
+- New model-building or calculation helpers may still go here
+  temporarily, but should include a TODO comment pointing to
+  their intended final location.
+
+See also: docs/module_structure.md
+"""
 
 import FreeCAD
 import FreeCADGui
@@ -15,6 +43,15 @@ from collections import defaultdict
 import numpy as np
 
 from ThermalAnalysis.modeling import calculation, freecad_utils
+
+
+# =========================================================
+# PRIVATE UTILITIES — LOGGING, NAMING, SELECTION HELPERS
+#
+# Small internal functions shared across the whole module:
+# debug logging, FreeCAD object naming conventions, and
+# selection/index parsing utilities.
+# =========================================================
 
 # #region agent log
 def _dbg_log(location, message, data=None, hypothesisId=None):
@@ -140,6 +177,16 @@ def _parse_face_indices_from_sub_names(sub_element_names):
                 continue
     return sorted(indices)
 
+
+# =========================================================
+# MODEL BUILDING  (geometry extraction, node generation)
+#
+# Converts FreeCAD Part shapes into the radiation/thermal
+# mesh representation used by this workbench:
+#   - tessellates solid faces into Mesh::Feature objects
+#   - creates FaceGroup / Node objects in the document
+#   - supports surface subdivision (UV grid split)
+# =========================================================
 
 def run_prepare_model(linear_deflection=0.1, angular_deflection=28.5, one_node_per_solid=False):
     """
@@ -747,6 +794,37 @@ def get_face_mesh_objects_from_selection():
     実装本体は `freecad_utils.get_face_mesh_objects_from_selection` に移動。
     """
     return freecad_utils.get_face_mesh_objects_from_selection()
+
+# =========================================================
+# DISPLAY / VISUALIZATION HELPERS
+#
+# !! TEMPORARY LOCATION — PLANNED TO MOVE TO post/ !!
+# =====================================================
+# All functions in this section belong in the post/
+# package.  They live here only because the physical
+# migration has not been completed yet.
+#
+# Migration status
+# ----------------
+# - Wrapper stubs already exist in post/__init__.py.
+# - When a function is moved to post/, the stub in
+#   post/__init__.py should be updated to call the new
+#   location, and the implementation here removed.
+# - Do NOT add new display/visualization functions here;
+#   add them directly to post/ instead.
+#
+# Contents
+# --------
+#   - active-side / optical-property color contours
+#   - temperature contour display after solver run
+#         (parse_thermal_out is also temporary here;
+#          it belongs in post/ as result I/O)
+#   - color bar overlay widget
+#   - conduction / radiation link visibility controls
+#   - display preference getters (node size, line width …)
+#   - surface and node number labels in the 3D view
+#   - hover label on mouse-over
+# =========================================================
 
 def visualize_active_side():
     if not FreeCAD.GuiUp:
@@ -1384,6 +1462,17 @@ def get_pref_edge_node_tolerance_mm():
     return _get_display_prefs().GetFloat("EdgeNodeToleranceMm", 5.0)
 
 
+def get_pref_label_scale_percent():
+    """番号ラベルのサイズ倍率（%）。100 で面対角線の 20% を基準サイズとする。"""
+    return _get_display_prefs().GetInt("LabelScalePercent", 100)
+
+
+def get_pref_label_offset_mm():
+    """番号ラベルを面/ノードの法線方向に押し出す追加オフセット距離 [mm]。
+    0.0 ではノード球の縁にラベルを配置（従来の動作）。"""
+    return _get_display_prefs().GetFloat("LabelOffsetMm", 0.0)
+
+
 def _apply_conduction_link_view(link_obj):
     """伝熱コンダクタンスリンクの ViewObject に線の太さ・色を設定する。"""
     if not FreeCAD.GuiUp or not link_obj or not hasattr(link_obj, "ViewObject"):
@@ -1746,8 +1835,8 @@ def _update_surface_number_labels(doc, face_groups, label_scale_percent=100):
         px = pos.x if hasattr(pos, "x") else float(pos[0])
         py = pos.y if hasattr(pos, "y") else float(pos[1])
         pz = pos.z if hasattr(pos, "z") else float(pos[2])
-        # オフセット = ノードの半径（ラベルをノード直近に。法線はグローバル座標に変換してY方向ずれを防ぐ）
-        off = (_node_sphere_diameter_mm(node_obj) * 0.5) if node_obj else _RA_LABEL_OFFSET_MM_FALLBACK
+        # オフセット = ノード球半径 + ユーザー設定の追加オフセット
+        off = ((_node_sphere_diameter_mm(node_obj) * 0.5) if node_obj else _RA_LABEL_OFFSET_MM_FALLBACK) + get_pref_label_offset_mm()
         if front_face and getattr(front_face, "Mesh", None):
             normal_local = _mesh_outward_normal(front_face.Mesh)
             normal = _local_normal_to_global(front_face, normal_local)
@@ -1808,7 +1897,7 @@ def _update_node_number_labels(doc, face_groups, label_scale_percent=100):
         px = pos.x if hasattr(pos, "x") else float(pos[0])
         py = pos.y if hasattr(pos, "y") else float(pos[1])
         pz = pos.z if hasattr(pos, "z") else float(pos[2])
-        off = _node_sphere_diameter_mm(node) * 0.5  # 半径分だけオフセット（ノード直近に表示）
+        off = _node_sphere_diameter_mm(node) * 0.5 + get_pref_label_offset_mm()  # 半径 + ユーザー設定オフセット
         if _front_face and getattr(_front_face, "Mesh", None):
             normal_local = _mesh_outward_normal(_front_face.Mesh)
             normal = _local_normal_to_global(_front_face, normal_local)
@@ -1828,8 +1917,11 @@ def _update_node_number_labels(doc, face_groups, label_scale_percent=100):
     doc.recompute()
 
 
-def run_show_surface_numbers(show, label_scale_percent=100):
-    """サーフェース番号の表示を ON/OFF する。label_scale_percent: ラベル大きさの%（100で基準10mm）。"""
+def run_show_surface_numbers(show, label_scale_percent=None):
+    """サーフェース番号の表示を ON/OFF する。
+    label_scale_percent: ラベル大きさの%。None のとき表示パラメータ設定から読み取る。"""
+    if label_scale_percent is None:
+        label_scale_percent = get_pref_label_scale_percent()
     doc = FreeCAD.ActiveDocument
     if not doc or not FreeCAD.GuiUp:
         return
@@ -1856,8 +1948,11 @@ def run_show_surface_numbers(show, label_scale_percent=100):
             pass
 
 
-def run_show_node_numbers(show, label_scale_percent=100):
-    """ノード番号の表示を ON/OFF する。label_scale_percent: ラベル大きさの%（100で基準10mm）。"""
+def run_show_node_numbers(show, label_scale_percent=None):
+    """ノード番号の表示を ON/OFF する。
+    label_scale_percent: ラベル大きさの%。None のとき表示パラメータ設定から読み取る。"""
+    if label_scale_percent is None:
+        label_scale_percent = get_pref_label_scale_percent()
     doc = FreeCAD.ActiveDocument
     if not doc or not FreeCAD.GuiUp:
         return
@@ -2195,6 +2290,14 @@ def run_set_node_point_sizes(mode, percent):
     FreeCAD.Console.PrintMessage(f"ノードサイズを設定しました（{mode}, {percent}%）。\n")
 
 
+# =========================================================
+# THERMAL PROPERTY AND MATERIAL HANDLING
+#
+# Iteration and lookup helpers that expose face-mesh
+# objects for bulk property assignment and for feeding
+# into the conductance / radiation solvers.
+# =========================================================
+
 def _face_group_members(face_group):
     """FaceGroup の直下メンバーと、1段ネストしたグループ内メンバーを平坦に返す（表面/裏面が「面」グループ内にある場合に対応）。"""
     members = list(face_group.Group)
@@ -2343,6 +2446,29 @@ def _iter_radiation_patch_meshes(face_groups):
                     if back:
                         yield (back, node)
 
+
+# =========================================================
+# THERMAL NETWORK CALCULATION
+#
+# Three sub-groups, executed in order by the user:
+#
+#   1. THERMAL MASS
+#      calculate_thermal_mass()
+#      Computes Cp × mass for each node from mesh geometry
+#      and material properties.
+#
+#   2. CONDUCTION CONDUCTANCE
+#      calculate_conductance(), add_manual_conductance()
+#      Finds shared edges between adjacent face-mesh patches
+#      and computes kA/L conduction links.
+#      export_nodes_and_conductance_dat() writes a .dat file.
+#
+#   3. RADIATION CONDUCTANCE  (Monte Carlo ray tracing)
+#      calculate_radiation_conductance()
+#      Builds surface patches, shoots random rays to estimate
+#      view factors, then writes radiation links to the doc.
+#      export_radiation_dat() writes a .dat file.
+# =========================================================
 
 def calculate_thermal_mass():
     doc = FreeCAD.ActiveDocument
@@ -3539,6 +3665,16 @@ def export_radiation_dat(filepath):
         f.write("\n".join(lines))
     FreeCAD.Console.PrintMessage(f"輻射コンダクタンスリストをエクスポートしました: {filepath}\n")
 
+
+# =========================================================
+# SOLVER FILE EXPORT  (combined .inp)
+#
+# Writes the complete thermal model (nodes, conduction links,
+# radiation links, OPTIONS / CONTROL headers) into a single
+# .inp file consumed by the external thermal solver.
+# Individual .dat exports live in the CONDUCTANCE section
+# above; this function combines everything.
+# =========================================================
 
 def export_thermal_model_inp(filepath, options_data=None, control_data=None, default_initial_temperature=20.0):
     """

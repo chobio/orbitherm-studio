@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 # InitGui.py (バージョン 5.2)
+"""
+FreeCAD entry point for the ThermalAnalysis workbench.
+
+Note:
+- Canonical command definitions live in ThermalAnalysis.gui.commands
+- Some local class definitions remain temporarily for compatibility
+- Registration is currently finalized via imported command definitions
+"""
 
 import os
 import sys
@@ -79,8 +87,11 @@ def _get_object_from_tree_index(tree, pos):
 
 
 def _hover_callback(*args):
-    """3Dビューでマウスが動いたとき、ポインタ下のオブジェクトの面/ノード番号をホバーラベルで表示する。
-    一定間隔で間引き、オプションで無効化可能。コールバックは FreeCAD の別スコープで実行されるため、モジュールの他のグローバル名を参照しないこと。"""
+    """ホバーによる面/ノード番号表示は廃止されました。
+    番号は「表示設定」ダイアログの「面番号を表示」「ノード番号を表示」チェックボックスから表示できます。"""
+    # ホバー表示を廃止したため、常に何もせず返す。
+    return
+    # ---- 以下は廃止済みコード（将来削除予定） ----
     event_callback_info = args[-1] if args else None
     try:
         doc = FreeCAD.ActiveDocument
@@ -320,7 +331,7 @@ class _TreeContextMenuFilter(QtCore.QObject):
             if doc:
                 FreeCADGui.Selection.clearSelection()
                 FreeCADGui.Selection.addSelection(doc, o.Name)
-                from ThermalAnalysis.modeling.gui_panels import EditPropertiesTaskPanel
+                from ThermalAnalysis.gui.panels import EditPropertiesTaskPanel
                 panel = EditPropertiesTaskPanel()
                 FreeCADGui.Control.showDialog(panel)
             return True
@@ -374,7 +385,9 @@ def _agent_debug_log(hypothesis_id, location, message, data=None, run_id="initia
 
 
 # ===================================================================================
-# === コマンドクラスの定義
+# === コマンドクラスの定義（gui/commands.py に移動済み）
+# 以下のローカル定義は後方互換のために残してあるが、
+# 登録処理直前の import * によって gui/commands.py の定義に上書きされる。
 # ===================================================================================
 
 # --- コマンド1: モデル準備 ---
@@ -407,7 +420,7 @@ class ThermalAnalysis_Modeling_PrepareModel:
                 run_id="initial",
             )
         # #endregion
-        from ThermalAnalysis.modeling.gui_panels import PrepareModelDialog
+        from ThermalAnalysis.gui.panels import PrepareModelDialog
         from ThermalAnalysis.modeling import core
         dlg = PrepareModelDialog()
         if not dlg.exec_():
@@ -472,7 +485,7 @@ class ThermalAnalysis_Modeling_Defeaturing:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import DefeaturingDialog
+        from ThermalAnalysis.gui.panels import DefeaturingDialog
         from ThermalAnalysis.modeling import defeaturing
         dlg = DefeaturingDialog()
         if not dlg.exec_():
@@ -546,7 +559,7 @@ class ThermalAnalysis_Modeling_EditProperties:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import EditPropertiesTaskPanel
+        from ThermalAnalysis.gui.panels import EditPropertiesTaskPanel
         self.panel = EditPropertiesTaskPanel()
         FreeCADGui.Control.showDialog(self.panel)
     def IsActive(self):
@@ -564,7 +577,7 @@ class ThermalAnalysis_Modeling_BulkSetProperties:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import BulkPropertiesDialog
+        from ThermalAnalysis.gui.panels import BulkPropertiesDialog
         dlg = BulkPropertiesDialog()
         dlg.exec_()
 
@@ -581,7 +594,7 @@ class ThermalAnalysis_Modeling_ManageMaterials:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import MaterialEditorDialog
+        from ThermalAnalysis.gui.panels import MaterialEditorDialog
         self.dialog = MaterialEditorDialog()
         self.dialog.exec_()
 
@@ -627,7 +640,7 @@ class ThermalAnalysis_Modeling_DisplayOptions:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import DisplayOptionsDialog
+        from ThermalAnalysis.gui.panels import DisplayOptionsDialog
         dlg = DisplayOptionsDialog()
         dlg.exec_()
 
@@ -644,7 +657,7 @@ class ThermalAnalysis_DisplayParametersSettings:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import DisplayParametersSettingsDialog
+        from ThermalAnalysis.gui.panels import DisplayParametersSettingsDialog
         dlg = DisplayParametersSettingsDialog()
         dlg.exec_()
 
@@ -704,7 +717,7 @@ class ThermalAnalysis_Modeling_CalculateRadiationConductance:
         }
     def Activated(self):
         from ThermalAnalysis.modeling import core
-        from ThermalAnalysis.modeling.gui_panels import RadiationParamsDialog
+        from ThermalAnalysis.gui.panels import RadiationParamsDialog
         dlg = RadiationParamsDialog()
         if not dlg.exec_():
             return
@@ -771,7 +784,7 @@ class ThermalAnalysis_Modeling_ThermalModelExport:
     def Activated(self):
         import FreeCAD
         from ThermalAnalysis.modeling import core
-        from ThermalAnalysis.modeling.gui_panels import ThermalModelExportDialog
+        from ThermalAnalysis.gui.panels import ThermalModelExportDialog
         try:
             from PySide2 import QtWidgets
         except ImportError:
@@ -812,7 +825,7 @@ class ThermalAnalysis_Modeling_SubdivideSurface:
     def GetResources(self):
         return {'MenuText': "サーフェースを分割", 'ToolTip': "選択したFaceGroupのメッシュをグリッドで分割し、サブサーフェースとノードを作成します。"}
     def Activated(self):
-        from ThermalAnalysis.modeling.gui_panels import SubdivideSurfaceDialog
+        from ThermalAnalysis.gui.panels import SubdivideSurfaceDialog
         from ThermalAnalysis.modeling import core
         dlg = SubdivideSurfaceDialog()
         if not dlg.exec_():
@@ -854,7 +867,7 @@ class ThermalAnalysis_Post_PostProcessing:
             from PySide2 import QtWidgets
         except ImportError:
             from PySide import QtGui as QtWidgets
-        from ThermalAnalysis.modeling.gui_panels import PostProcessingDialog
+        from ThermalAnalysis.gui.panels import PostProcessingDialog
         doc = FreeCAD.ActiveDocument
         if not doc:
             QtWidgets.QMessageBox.warning(None, "Post Processing", "アクティブなドキュメントがありません。")
@@ -884,7 +897,7 @@ class ThermalAnalysis_Orbit_CalcHeatAndVisualize:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.orbit_heat.orbit_gui import OrbitEnvironmentDialog
+        from ThermalAnalysis.gui.orbit_gui import OrbitEnvironmentDialog
         from ThermalAnalysis.orbit_heat import orbit_core, orbit_visualization
         doc = FreeCAD.ActiveDocument
         if not doc:
@@ -983,7 +996,7 @@ class ThermalAnalysis_Orbit_ExportHeatArrayOnly:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.orbit_heat.orbit_gui import OrbitEnvironmentDialog
+        from ThermalAnalysis.gui.orbit_gui import OrbitEnvironmentDialog
         from ThermalAnalysis.orbit_heat import orbit_core
 
         dlg = OrbitEnvironmentDialog()
@@ -1057,7 +1070,7 @@ class ThermalAnalysis_Orbit_StepOrbitFrames:
         return FreeCAD.ActiveDocument is not None
 
     def Activated(self):
-        from ThermalAnalysis.orbit_heat.orbit_step_dialog import OrbitStepDialog
+        from ThermalAnalysis.gui.orbit_step_dialog import OrbitStepDialog
         dlg = OrbitStepDialog()
         dlg.exec_()
 
@@ -1075,7 +1088,7 @@ class ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation:
     def Activated(self):
         from PySide import QtGui
         from ThermalAnalysis.orbit_heat import orbit_core, orbit_radiation
-        from ThermalAnalysis.orbit_heat import orbit_heat_bridge as bridge
+        from ThermalAnalysis.bridge import orbit_heat_bridge as bridge
 
         state = orbit_core.get_last_orbit_state()
         if not state:
@@ -1170,7 +1183,7 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
         self.list = [
             'ThermalAnalysis_Modeling_PrepareModel', 'ThermalAnalysis_Modeling_Defeaturing', 'ThermalAnalysis_Modeling_DefeaturingSelected', 'ThermalAnalysis_Modeling_EditProperties', 'ThermalAnalysis_Modeling_BulkSetProperties',
             'ThermalAnalysis_Modeling_ManageMaterials', 'ThermalAnalysis_Modeling_SubdivideSurface',
-            'ThermalAnalysis_Modeling_DisplayOptions', 'ThermalAnalysis_DisplayParametersSettings', 'ThermalAnalysis_ToggleHoverLabel',
+            'ThermalAnalysis_Modeling_DisplayOptions', 'ThermalAnalysis_DisplayParametersSettings',
             'ThermalAnalysis_Modeling_CalculateThermalMass', 'ThermalAnalysis_Modeling_CalculateConductance',
             'ThermalAnalysis_Modeling_CalculateRadiationConductance', 'ThermalAnalysis_Modeling_AddConductance',
             'ThermalAnalysis_Modeling_ThermalModelExport', 'ThermalAnalysis_Post_PostProcessing',
@@ -1180,7 +1193,7 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
         _modeling_main = [
             "ThermalAnalysis_Modeling_PrepareModel", "ThermalAnalysis_Modeling_Defeaturing", "ThermalAnalysis_Modeling_DefeaturingSelected", "ThermalAnalysis_Modeling_EditProperties", "ThermalAnalysis_Modeling_BulkSetProperties",
             "ThermalAnalysis_Modeling_ManageMaterials", "ThermalAnalysis_Modeling_SubdivideSurface",
-            "ThermalAnalysis_Modeling_DisplayOptions", "ThermalAnalysis_DisplayParametersSettings", "ThermalAnalysis_ToggleHoverLabel",
+            "ThermalAnalysis_Modeling_DisplayOptions", "ThermalAnalysis_DisplayParametersSettings",
             "ThermalAnalysis_Modeling_CalculateThermalMass", "ThermalAnalysis_Modeling_CalculateConductance",
             "ThermalAnalysis_Modeling_CalculateRadiationConductance", "ThermalAnalysis_Modeling_AddConductance",
             "ThermalAnalysis_Modeling_ThermalModelExport", "ThermalAnalysis_Post_PostProcessing",
@@ -1319,6 +1332,8 @@ ThermalAnalysisWorkbench._TreeContextMenuFilter_class = _TreeContextMenuFilter
 ThermalAnalysisWorkbench._ra_hover_callback_fn = _hover_callback
 
 
+# _LegacyRadiationCommandAlias は gui/commands.py に移動済み。
+# 登録処理直前の import で上書きされるため、以下の定義は互換用のみ。
 class _LegacyRadiationCommandAlias:
     """
     旧 RadiationAnalysis_* コマンド名から新しい ThermalAnalysis_* コマンドへのエイリアス。
@@ -1374,6 +1389,14 @@ class _LegacyRadiationCommandAlias:
             FreeCAD.Console.PrintError(
                 f"Legacy command alias '{self._new_name}' の実行に失敗しました。\n"
             )
+
+
+# ===================================================================================
+# === コマンドクラスを gui/commands.py から再インポート（正規の定義元）
+# 上で定義したローカルクラスを上書きし、gui/commands.py を単一の定義源にする。
+# ===================================================================================
+from ThermalAnalysis.gui.commands import *  # noqa: F401, F403
+from ThermalAnalysis.gui.commands import _LegacyRadiationCommandAlias  # noqa: F401
 
 
 # ===================================================================================
