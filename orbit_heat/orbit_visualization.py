@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 from typing import Iterable, Sequence, Tuple
@@ -188,7 +188,7 @@ def _get_earth_texture_path() -> str:
         import FreeCAD as _fc
         cwd = getattr(_fc, "getUserAppDataDir", lambda: "")()
         if cwd:
-            candidates.append(os.path.join(cwd, "Mod", "ThermalAnalysis", "orbit_heat", "earth_texture.jpg"))
+            candidates.append(os.path.join(cwd, "Mod", "orbitherm-studio", "orbit_heat", "earth_texture.jpg"))
     except Exception:
         pass
     for p in candidates:

@@ -17,7 +17,7 @@ Note:
 import os
 import sys
 
-# FreeCAD が Mod\orbitherm_studio をカレントにしている場合、
+# FreeCAD が Mod\orbitherm-studio をカレントにしている場合、
 # 親の Mod を path に追加して "orbitherm_studio" パッケージを import 可能にする
 try:
     _this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,9 +26,28 @@ except NameError:
     # __file__ が未定義のとき（FreeCAD の実行コンテキストによる）
     import FreeCAD
     _mod_dir = os.path.join(FreeCAD.getUserAppDataDir(), "Mod")
-    _this_dir = os.path.join(_mod_dir, "orbitherm_studio")
+    _this_dir = os.path.join(_mod_dir, "orbitherm-studio")
 if _mod_dir not in sys.path:
     sys.path.insert(0, _mod_dir)
+
+# フォルダ名が orbitherm-studio（ハイフン）の場合、Python は orbitherm_studio パッケージを
+# 自動検出できないため、sys.modules に手動登録する
+if "orbitherm_studio" not in sys.modules:
+    import importlib.util as _ilu
+    _init_file = os.path.join(_this_dir, "__init__.py")
+    if os.path.isfile(_init_file):
+        _spec = _ilu.spec_from_file_location(
+            "orbitherm_studio",
+            _init_file,
+            submodule_search_locations=[_this_dir],
+        )
+        _pkg = _ilu.module_from_spec(_spec)
+        _pkg.__path__ = [_this_dir]
+        _pkg.__package__ = "orbitherm_studio"
+        sys.modules["orbitherm_studio"] = _pkg
+        _spec.loader.exec_module(_pkg)
+        del _init_file, _spec, _pkg
+    del _ilu
 
 import time
 import FreeCAD
@@ -274,8 +293,8 @@ class ThermalAnalysis_Modeling_PrepareModel:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"): return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
+            if os.path.basename(p) in ("orbitherm-studio", "orbitherm_studio", "ThermalAnalysis"): return p
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
     def GetResources(self):
         workbench_path = self._get_path()
         icon_path = os.path.join(workbench_path, "Resources", "icons", "RadiationAnalysis_PrepareModel_Icon.svg")
@@ -350,9 +369,9 @@ class ThermalAnalysis_Modeling_Defeaturing:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"):
+            if os.path.basename(p) in ("orbitherm-studio", "orbitherm_studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
 
     def GetResources(self):
         workbench_path = self._get_path()
@@ -394,9 +413,9 @@ class ThermalAnalysis_Modeling_DefeaturingSelected:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"):
+            if os.path.basename(p) in ("orbitherm-studio", "orbitherm_studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
 
     def GetResources(self):
         workbench_path = self._get_path()
@@ -1007,8 +1026,8 @@ class OrbithermWorkbench(FreeCADGui.Workbench):
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"): return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
+            if os.path.basename(p) in ("orbitherm-studio", "orbitherm_studio", "ThermalAnalysis"): return p
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
     def __init__(self):
         super().__init__()
         workbench_path = self._get_path()

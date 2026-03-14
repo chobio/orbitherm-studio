@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 ThermalAnalysis GUI コマンドクラス群。
 FreeCAD ツールバー・メニューに登録されるコマンド（ThermalAnalysis_*）と
@@ -21,8 +21,8 @@ class ThermalAnalysis_Modeling_PrepareModel:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis": return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+            if os.path.basename(p) in ("orbitherm-studio", "ThermalAnalysis"): return p
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
     def GetResources(self):
         workbench_path = self._get_path()
         icon_path = os.path.join(workbench_path, "Resources", "icons", "RadiationAnalysis_PrepareModel_Icon.svg")
@@ -52,9 +52,9 @@ class ThermalAnalysis_Modeling_Defeaturing:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis":
+            if os.path.basename(p) in ("orbitherm-studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
 
     def GetResources(self):
         workbench_path = self._get_path()
@@ -95,9 +95,9 @@ class ThermalAnalysis_Modeling_DefeaturingSelected:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis":
+            if os.path.basename(p) in ("orbitherm-studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm-studio")
 
     def GetResources(self):
         workbench_path = self._get_path()

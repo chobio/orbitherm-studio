@@ -1,4 +1,4 @@
-﻿# Orbitherm Studio — FreeCAD-based thermal modeling workbench
+# Orbitherm Studio — FreeCAD-based thermal modeling workbench
 # Package root: orbitherm_studio (formerly ThermalAnalysis)
 
 import sys as _sys
@@ -6,15 +6,14 @@ import sys as _sys
 # ---------------------------------------------------------------------------
 # Bidirectional import alias shim
 #
-# Pre-rename  (dir = ThermalAnalysis):
+# Legacy (dir = ThermalAnalysis):
 #   This module loads as 'ThermalAnalysis'.
 #   We register 'orbitherm_studio' pointing here so that
 #   "from orbitherm_studio.xxx import" works immediately.
 #
-# Post-rename (dir = orbitherm_studio):
-#   This module loads as 'orbitherm_studio'.
-#   We register 'ThermalAnalysis' pointing here so that
-#   any old user macro using "from orbitherm_studio.xxx import" still works.
+# Current (dir = orbitherm-studio):
+#   InitGui.py が importlib で本モジュールを 'orbitherm_studio' として手動登録する。
+#   __name__ == 'orbitherm_studio' になるので、ThermalAnalysis 後方互換エイリアスを登録。
 # ---------------------------------------------------------------------------
 _self = _sys.modules[__name__]
 

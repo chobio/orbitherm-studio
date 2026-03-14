@@ -32,13 +32,10 @@ FreeCAD の Workbench 一覧には **Orbitherm** として表示されます。
 
 ## インストール
 
-1. この `ThermalAnalysis` フォルダを FreeCAD の Mod ディレクトリに配置します。
-   - ユーザー Mod: `%APPDATA%\FreeCAD\Mod\ThermalAnalysis`（Windows）
-   - または FreeCAD インストール先の `Mod/ThermalAnalysis`
+1. この `orbitherm-studio` フォルダを FreeCAD の Mod ディレクトリに配置します。
+   - ユーザー Mod: `%APPDATA%\FreeCAD\Mod\orbitherm-studio`（Windows）
+   - または FreeCAD インストール先の `Mod/orbitherm-studio`
 2. FreeCAD を起動し、ワークベンチ一覧から **Orbitherm** を選択します。
-
-> 現在のディレクトリ名は `ThermalAnalysis` のままですが、
-> 将来的には `orbitherm-studio` リポジトリ名に合わせて整理予定です。
 
 ---
 
