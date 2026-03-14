@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Defeaturing: 穴とフィレットをまとめて削除する処理。
 ThermalAnalysis ワークベンチのコマンドおよびマクロから利用する。
@@ -170,7 +170,7 @@ def run_defeaturing(hole_max_diameter_mm=6.5, fillet_max_radius_mm=4.0):
     new_obj.Shape = new_shape
     # 元パーツと同じ位置・向きで表示するため Placement をコピー（アッセンブリの場合はグローバル Placement）
     try:
-        from ThermalAnalysis.modeling.core import _get_global_placement
+        from orbitherm_studio.modeling.core import _get_global_placement
         pl = _get_global_placement(obj)
         if pl is not None:
             new_obj.Placement = pl
@@ -338,7 +338,7 @@ def run_defeaturing_selected_faces():
     new_obj.Label = original_label
     new_obj.Shape = new_shape
     try:
-        from ThermalAnalysis.modeling.core import _get_global_placement
+        from orbitherm_studio.modeling.core import _get_global_placement
         pl = _get_global_placement(obj)
         if pl is not None:
             new_obj.Placement = pl

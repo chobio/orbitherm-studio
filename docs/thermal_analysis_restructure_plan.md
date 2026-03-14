@@ -1,11 +1,11 @@
 ---
-name: ThermalAnalysis workbench merge
-overview: RadiationAnalysis と OrbitHeatWorkbench を 1 つの FreeCAD ワークベンチ **ThermalAnalysis** に統合し、modeling（旧輻射・伝熱）と orbit_heat（旧軌道熱）をサブモジュール化する。solver / post はプレースホルダのみ作成する。
+name: Orbitherm Studio workbench merge
+overview: RadiationAnalysis と OrbitHeatWorkbench を 1 つの FreeCAD ワークベンチ **Orbitherm Studio**（内部名: ThermalAnalysis）に統合し、modeling（旧輻射・伝熱）と orbit_heat（旧軌道熱）をサブモジュール化する。solver / post はプレースホルダのみ作成する。
 todos: []
 isProject: false
 ---
 
-# ThermalAnalysis ワークベンチ統合 実行プラン
+# Orbitherm Studio — ワークベンチ統合 実行プラン（旧称: ThermalAnalysis）
 
 ## 前提と成果物
 

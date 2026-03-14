@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 OrbitHeat ワークベンチ用ブリッジ。
 輻射モデルの面リスト（node_id, surface_id, 法線・面積・光学特性）を返す。
@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional
 
 import FreeCAD
 
-from ThermalAnalysis.modeling import freecad_utils
-from ThermalAnalysis.modeling.core import (
+from orbitherm_studio.modeling import freecad_utils
+from orbitherm_studio.modeling.core import (
     _iter_face_groups_front_and_node,
     _local_normal_to_global,
     _mesh_outward_normal,

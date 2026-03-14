@@ -1,12 +1,18 @@
-# ThermalAnalysis Cursor Rules
+# Orbitherm Studio — Cursor Rules
+
+## Brand
+- Parent brand  : **Orbitherm**
+- Workbench name: **Orbitherm Studio** (displayed as "Orbitherm" in FreeCAD workbench selector)
+- Solver name   : **Orbitherm Solver** (separate repository: orbitherm-solver)
+- Internal package name: `ThermalAnalysis` (gradual migration to `orbitherm_studio` planned)
 
 This repository is a FreeCAD 1.0.1 workbench for spacecraft thermal analysis.
 
 ## Project purpose
-The workbench is used to:
+**Orbitherm Studio** is used to:
 - build thermal mathematical models from FreeCAD geometry
 - compute orbital thermal environment inputs
-- export solver input files for an external SINDA-like solver
+- export solver input files for Orbitherm Solver (SINDA-like thermal network solver)
 - visualize analysis-related data and results inside FreeCAD
 
 ## Current architecture

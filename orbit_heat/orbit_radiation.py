@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 輻射モデル（RadiationAnalysis）の面ごとに軌道熱入力を計算し、
 CSV エクスポート・ノード HeatSource 書き戻しを行う。
@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import FreeCAD
 import numpy as np
 
-from ThermalAnalysis.orbit_heat import orbit_attitude, orbit_core
+from orbitherm_studio.orbit_heat import orbit_attitude, orbit_core
 
 
 _EARTH_RADIUS_KM = 6371.0

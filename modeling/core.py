@@ -1,4 +1,4 @@
-# core.py (バージョン 5.2)
+﻿# core.py (バージョン 5.2)
 """
 COMPATIBILITY INTEGRATION MODULE — DO NOT ADD NEW LOGIC HERE
 =============================================================
@@ -42,7 +42,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from ThermalAnalysis.modeling import calculation, freecad_utils
+from orbitherm_studio.modeling import calculation, freecad_utils
 
 
 # =========================================================
@@ -1660,8 +1660,24 @@ def _get_default_font_path():
     return ""
 
 
-def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique_index=0):
-    """3D 空間に番号ラベル用の形状を作成する。Part.ShapeString を押し出して3Dで見えるようにする。"""
+def _make_label_rotation(normal):
+    """面法線ベクトル normal に向くように文字 (XY 平面上) を回転させる Rotation を返す。
+    ShapeString はデフォルトで XY 平面に置かれ +Z 方向から読める。
+    +Z 軸を face normal に一致させる最小回転を返す。失敗時は None。"""
+    try:
+        n = FreeCAD.Vector(normal[0], normal[1], normal[2])
+        if n.Length < 1e-9:
+            return None
+        n = n.normalize()
+        rot = FreeCAD.Rotation(FreeCAD.Vector(0.0, 0.0, 1.0), n)
+        return rot
+    except Exception:
+        return None
+
+
+def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique_index=0, normal=None):
+    """3D 空間に番号ラベル用の形状を作成する。Part.ShapeString を押し出して3Dで見えるようにする。
+    normal: 面の法線ベクトル (tuple/list of 3 floats)。指定すると文字が法線方向を向くよう回転する。"""
     font = _get_default_font_path()
     # #region agent log
     _dbg_log("core.py:_create_number_label", "entry", {"has_font": bool(font), "has_ShapeString": hasattr(Part, "ShapeString"), "text": str(text), "size_mm": size_mm}, "H2")
@@ -1700,6 +1716,10 @@ def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique
                 _dbg_log("core.py:_create_number_label", "extrude fallback to ss", {"error": str(type(ex).__name__)}, "H2")
                 # #endregion
             obj.Placement.Base = FreeCAD.Vector(position_mm[0], position_mm[1], position_mm[2])
+            if normal is not None:
+                _rot = _make_label_rotation(normal)
+                if _rot is not None:
+                    obj.Placement.Rotation = _rot
             obj.Label = str(text)
             # #region agent log
             _dbg_log("core.py:_create_number_label", "return Part obj", {"name": obj.Name}, "H2")
@@ -1752,6 +1772,10 @@ def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique
                     except Exception:
                         obj.Shape = ss
                     obj.Placement.Base = FreeCAD.Vector(position_mm[0], position_mm[1], position_mm[2])
+                    if normal is not None:
+                        _rot = _make_label_rotation(normal)
+                        if _rot is not None:
+                            obj.Placement.Rotation = _rot
                     obj.Label = str(text)
                     return obj
         except Exception:
@@ -1765,6 +1789,13 @@ def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique
                     if hasattr(txt.ViewObject, prop):
                         setattr(txt.ViewObject, prop, size_mm)
                         break
+            if txt and normal is not None:
+                _rot = _make_label_rotation(normal)
+                if _rot is not None:
+                    try:
+                        txt.Placement.Rotation = _rot
+                    except Exception:
+                        pass
             # #region agent log
             _dbg_log("core.py:_create_number_label", "return Draft", {"ok": txt is not None}, "H5")
             # #endregion
@@ -1781,7 +1812,9 @@ def _create_number_label(doc, base_name, text, position_mm, size_mm=10.0, unique
 
 
 def _update_surface_number_labels(doc, face_groups, label_scale_percent=100):
-    """FaceGroup のサーフェース番号ラベルを再作成する。ラベルは面法線方向にノード直径分オフセットして配置。文字サイズは面の20%を基準。"""
+    """各面（分割面 _sub_ を含む）のサーフェース番号ラベルを再作成する。
+    ラベルは "MODEL.NNNN" 形式で、面法線方向にオフセットして配置。
+    文字は面法線方向を向くよう回転する。"""
     # #region agent log
     _dbg_log("core.py:_update_surface_number_labels", "entry", {"face_groups_count": len(face_groups) if face_groups else 0, "label_scale_percent": label_scale_percent}, "H4")
     # #endregion
@@ -1799,31 +1832,14 @@ def _update_surface_number_labels(doc, face_groups, label_scale_percent=100):
             doc.removeObject(o.Name)
         except Exception:
             pass
-    for g in face_groups:
-        surf_num = getattr(g, "SurfaceNumber", None)
-        if surf_num is None:
-            continue
-        pos = None
-        front_face = None
-        node_obj = None
-        for obj in _face_group_members(g):
-            if obj.Name.endswith("_front") and hasattr(obj, "Mesh"):
-                front_face = obj
-            if obj.Name.startswith("Node_"):
-                pos = _node_position(obj)
-                if pos is not None:
-                    node_obj = obj
-                    break
-        if pos is None and front_face and getattr(front_face, "Mesh", None):
-            pos = front_face.Mesh.BoundBox.Center
+    for idx, (front_face, node) in enumerate(_iter_face_groups_front_and_node(face_groups)):
+        pos = _node_position(node)
         if pos is None:
             continue
-        if front_face is None:
-            for obj in _face_group_members(g):
-                if obj.Name.endswith("_front") and hasattr(obj, "Mesh"):
-                    front_face = obj
-                    break
-        # ラベル文字サイズ: 面の20%を基準に、label_scale_percent でスケール（100%で面の20%）
+        surf_num = getattr(node, "NodeNumber", 0)
+        model_name = getattr(node, "ModelName", "") or (getattr(front_face, "ModelName", "") if front_face else "")
+        label_text = f"{model_name}.{surf_num}" if model_name else str(surf_num)
+        # ラベル文字サイズ: 面の20%を基準に label_scale_percent でスケール
         face_diag = 10.0
         if front_face and getattr(front_face, "Mesh", None):
             b = front_face.Mesh.BoundBox
@@ -1836,21 +1852,20 @@ def _update_surface_number_labels(doc, face_groups, label_scale_percent=100):
         py = pos.y if hasattr(pos, "y") else float(pos[1])
         pz = pos.z if hasattr(pos, "z") else float(pos[2])
         # オフセット = ノード球半径 + ユーザー設定の追加オフセット
-        off = ((_node_sphere_diameter_mm(node_obj) * 0.5) if node_obj else _RA_LABEL_OFFSET_MM_FALLBACK) + get_pref_label_offset_mm()
+        off = (_node_sphere_diameter_mm(node) * 0.5) + get_pref_label_offset_mm()
+        face_normal = None
         if front_face and getattr(front_face, "Mesh", None):
             normal_local = _mesh_outward_normal(front_face.Mesh)
-            normal = _local_normal_to_global(front_face, normal_local)
-            pos_vec = (px + normal[0] * off, py + normal[1] * off, pz + normal[2] * off)
+            face_normal = _local_normal_to_global(front_face, normal_local)
+            pos_vec = (px + face_normal[0] * off, py + face_normal[1] * off, pz + face_normal[2] * off)
         else:
             pos_vec = (px, py, pz)
         # #region agent log
         if not getattr(_update_surface_number_labels, "_first_logged", False):
             _update_surface_number_labels._first_logged = True
-            parent = group.InList[0] if getattr(group, "InList", None) and len(group.InList) else None
-            parent_base = list(parent.Placement.Base) if parent and getattr(parent, "Placement", None) else None
-            _dbg_log("core.py:_update_surface_number_labels", "first label pos", {"node_pos": [round(px, 2), round(py, 2), round(pz, 2)], "pos_vec": [round(pos_vec[0], 2), round(pos_vec[1], 2), round(pos_vec[2], 2)], "group_parent": parent.Name if parent else None, "parent_placement_base": parent_base}, "H3")
+            _dbg_log("core.py:_update_surface_number_labels", "first label", {"label_text": label_text, "pos_vec": [round(v, 2) for v in pos_vec]}, "H3")
         # #endregion
-        lbl = _create_number_label(doc, "RA_SurfLabel", surf_num, pos_vec, size_mm=size_mm, unique_index=surf_num)
+        lbl = _create_number_label(doc, "RA_SurfLabel", label_text, pos_vec, size_mm=size_mm, unique_index=idx, normal=face_normal)
         if lbl:
             group.addObject(lbl)
             if FreeCAD.GuiUp and hasattr(lbl, "ViewObject"):
@@ -1864,7 +1879,9 @@ def _update_surface_number_labels(doc, face_groups, label_scale_percent=100):
 
 
 def _update_node_number_labels(doc, face_groups, label_scale_percent=100):
-    """全ノードのノード番号ラベルを再作成する。ラベルは面法線方向にノード直径分オフセット。文字サイズは面の20%を基準。"""
+    """全ノード（分割面の個別ノードを含む）のノード番号ラベルを再作成する。
+    ラベルは "MODEL.NNNN" 形式で、面法線方向にオフセットして配置。
+    文字は面法線方向を向くよう回転する。"""
     # #region agent log
     _dbg_log("core.py:_update_node_number_labels", "entry", {"face_groups_count": len(face_groups) if face_groups else 0}, "H4")
     # #endregion
@@ -1885,6 +1902,8 @@ def _update_node_number_labels(doc, face_groups, label_scale_percent=100):
         if pos is None:
             continue
         num = getattr(node, "NodeNumber", 0)
+        model_name = getattr(node, "ModelName", "") or (getattr(_front_face, "ModelName", "") if _front_face else "")
+        label_text = f"{model_name}.{num}" if model_name else str(num)
         # ラベル文字サイズ: 面の20%を基準
         face_diag = 10.0
         if _front_face and getattr(_front_face, "Mesh", None):
@@ -1897,14 +1916,15 @@ def _update_node_number_labels(doc, face_groups, label_scale_percent=100):
         px = pos.x if hasattr(pos, "x") else float(pos[0])
         py = pos.y if hasattr(pos, "y") else float(pos[1])
         pz = pos.z if hasattr(pos, "z") else float(pos[2])
-        off = _node_sphere_diameter_mm(node) * 0.5 + get_pref_label_offset_mm()  # 半径 + ユーザー設定オフセット
+        off = _node_sphere_diameter_mm(node) * 0.5 + get_pref_label_offset_mm()
+        face_normal = None
         if _front_face and getattr(_front_face, "Mesh", None):
             normal_local = _mesh_outward_normal(_front_face.Mesh)
-            normal = _local_normal_to_global(_front_face, normal_local)
-            pos_vec = (px + normal[0] * off, py + normal[1] * off, pz + normal[2] * off)
+            face_normal = _local_normal_to_global(_front_face, normal_local)
+            pos_vec = (px + face_normal[0] * off, py + face_normal[1] * off, pz + face_normal[2] * off)
         else:
             pos_vec = (px, py, pz)
-        lbl = _create_number_label(doc, "RA_NodeLabel", num, pos_vec, size_mm=size_mm, unique_index=idx)
+        lbl = _create_number_label(doc, "RA_NodeLabel", label_text, pos_vec, size_mm=size_mm, unique_index=idx, normal=face_normal)
         if lbl:
             group.addObject(lbl)
             if FreeCAD.GuiUp and hasattr(lbl, "ViewObject"):
@@ -1974,6 +1994,54 @@ def run_show_node_numbers(show, label_scale_percent=None):
             FreeCADGui.updateGui()
         except Exception:
             pass
+
+
+def get_face_label_data(doc=None):
+    """
+    面番号ラベルの描画データを返す。
+
+    Coin3D などの表示バックエンドが使う公開 API。
+    戻り値: list of (label_text: str, position_mm: tuple(x,y,z), normal: tuple(x,y,z) or None)
+    - label_text  : "MODEL.NNNN" 形式
+    - position_mm : ラベルを置く座標（法線方向オフセット適用済み）
+    - normal      : 面外向き法線（単位ベクトル）。取得できない場合は None
+    """
+    if doc is None:
+        doc = FreeCAD.ActiveDocument
+    if doc is None:
+        return []
+    face_groups = freecad_utils.get_face_groups(doc)
+    result = []
+    for front_face, node in _iter_face_groups_front_and_node(face_groups):
+        pos = _node_position(node)
+        if pos is None:
+            continue
+        num = getattr(node, "NodeNumber", 0)
+        model_name = getattr(node, "ModelName", "") or (getattr(front_face, "ModelName", "") if front_face else "")
+        label_text = f"{model_name}.{num}" if model_name else str(num)
+        px = pos.x if hasattr(pos, "x") else float(pos[0])
+        py = pos.y if hasattr(pos, "y") else float(pos[1])
+        pz = pos.z if hasattr(pos, "z") else float(pos[2])
+        off = (_node_sphere_diameter_mm(node) * 0.5) + get_pref_label_offset_mm()
+        face_normal = None
+        if front_face and getattr(front_face, "Mesh", None):
+            normal_local = _mesh_outward_normal(front_face.Mesh)
+            face_normal = _local_normal_to_global(front_face, normal_local)
+            pos_vec = (px + face_normal[0] * off, py + face_normal[1] * off, pz + face_normal[2] * off)
+        else:
+            pos_vec = (px, py, pz)
+        result.append((label_text, pos_vec, face_normal))
+    return result
+
+
+def get_node_label_data(doc=None):
+    """
+    ノード番号ラベルの描画データを返す。
+
+    Coin3D などの表示バックエンドが使う公開 API。
+    戻り値: get_face_label_data() と同形式 (ノード番号 == 面番号 のため同一データ)。
+    """
+    return get_face_label_data(doc)
 
 
 def _get_face_group_containing(doc, obj):

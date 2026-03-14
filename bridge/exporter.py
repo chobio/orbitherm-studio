@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 bridge/exporter.py
 ソルバー向けファイル出力のブリッジ層。
@@ -22,7 +22,7 @@ def export_thermal_model_inp(filepath, options_data=None, control_data=None, def
     default_initial_temperature : float, optional
         初期温度 [℃]（デフォルト: 20.0）
     """
-    from ThermalAnalysis.modeling import core
+    from orbitherm_studio.modeling import core
     return core.export_thermal_model_inp(
         filepath,
         options_data=options_data,
@@ -40,7 +40,7 @@ def export_nodes_and_conductance_dat(filepath):
     filepath : str
         出力ファイルパス
     """
-    from ThermalAnalysis.modeling import core
+    from orbitherm_studio.modeling import core
     return core.export_nodes_and_conductance_dat(filepath)
 
 
@@ -53,7 +53,7 @@ def export_radiation_dat(filepath):
     filepath : str
         出力ファイルパス
     """
-    from ThermalAnalysis.modeling import core
+    from orbitherm_studio.modeling import core
     return core.export_radiation_dat(filepath)
 
 
@@ -72,7 +72,7 @@ def export_heat_array_csv(filepath, times, heat_array, meta):
     meta : dict
         列名などのメタデータ（"columns" キーに面名リスト）
     """
-    from ThermalAnalysis.orbit_heat import orbit_core
+    from orbitherm_studio.orbit_heat import orbit_core
     return orbit_core.export_heat_array_csv(filepath, times, heat_array, meta)
 
 
@@ -87,5 +87,5 @@ def export_face_heat_csv(filepath, results):
     results : list[dict]
         orbit_radiation.compute_face_heat_inputs の戻り値
     """
-    from ThermalAnalysis.orbit_heat import orbit_radiation
+    from orbitherm_studio.orbit_heat import orbit_radiation
     return orbit_radiation.export_face_heat_csv(filepath, results)

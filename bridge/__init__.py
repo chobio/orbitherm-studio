@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-ThermalAnalysis bridge サブパッケージ。
+Orbitherm Studio — Bridge サブパッケージ (ThermalAnalysis.bridge)。
 輻射モデルと軌道熱ソルバー間の接続コード、および外部ソルバーとのファイル交換関数をここに集約する。
+Orbitherm Solver へのファイル出力エントリポイント。
 """
 
-from ThermalAnalysis.bridge.orbit_heat_bridge import get_surfaces_for_orbit_heat
-from ThermalAnalysis.bridge.exporter import (
+from orbitherm_studio.bridge.orbit_heat_bridge import get_surfaces_for_orbit_heat
+from orbitherm_studio.bridge.exporter import (
     export_thermal_model_inp,
     export_nodes_and_conductance_dat,
     export_radiation_dat,

@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 # InitGui.py (バージョン 5.2)
 """
-FreeCAD entry point for the ThermalAnalysis workbench.
+Orbitherm Studio — FreeCAD entry point.
+
+FreeCAD-based thermal modeling workbench for spacecraft and engineering systems.
+Public brand name  : Orbitherm Studio
+Workbench selector : Orbitherm
+Internal package   : ThermalAnalysis (gradual migration to orbitherm_studio planned)
 
 Note:
 - Canonical command definitions live in ThermalAnalysis.gui.commands
@@ -12,8 +17,8 @@ Note:
 import os
 import sys
 
-# FreeCAD が Mod\ThermalAnalysis をカレントにしている場合、
-# 親の Mod を path に追加して "ThermalAnalysis" パッケージを import 可能にする
+# FreeCAD が Mod\orbitherm_studio をカレントにしている場合、
+# 親の Mod を path に追加して "orbitherm_studio" パッケージを import 可能にする
 try:
     _this_dir = os.path.dirname(os.path.abspath(__file__))
     _mod_dir = os.path.dirname(_this_dir)
@@ -21,7 +26,7 @@ except NameError:
     # __file__ が未定義のとき（FreeCAD の実行コンテキストによる）
     import FreeCAD
     _mod_dir = os.path.join(FreeCAD.getUserAppDataDir(), "Mod")
-    _this_dir = os.path.join(_mod_dir, "ThermalAnalysis")
+    _this_dir = os.path.join(_mod_dir, "orbitherm_studio")
 if _mod_dir not in sys.path:
     sys.path.insert(0, _mod_dir)
 
@@ -30,15 +35,7 @@ import FreeCAD
 import FreeCADGui
 from PySide import QtCore, QtGui, QtWidgets
 
-# ホバー間引き用（コールバックは別スコープで実行されるため mutable で保持）
-_hover_state = {"last_time": 0}
-
-def _get_hover_prefs():
-    """ホバー表示の設定を返す (enabled, throttle_ms)。"""
-    p = FreeCAD.ParamGet("User parameter:Base/App/Preferences/Mod/ThermalAnalysis")
-    return (p.GetBool("HoverLabelEnabled", True), p.GetInt("HoverThrottleMs", 100))
-
-# from ThermalAnalysis.modeling.gui_panels import EditPropertiesTaskPanel, MaterialEditorDialog
+# from orbitherm_studio.modeling.gui_panels import EditPropertiesTaskPanel, MaterialEditorDialog
 
 
 def _is_radiation_analysis_tree_object(obj):
@@ -84,124 +81,6 @@ def _get_object_from_tree_index(tree, pos):
         if obj is not None and hasattr(obj, "Name"):
             return obj
     return None
-
-
-def _hover_callback(*args):
-    """ホバーによる面/ノード番号表示は廃止されました。
-    番号は「表示設定」ダイアログの「面番号を表示」「ノード番号を表示」チェックボックスから表示できます。"""
-    # ホバー表示を廃止したため、常に何もせず返す。
-    return
-    # ---- 以下は廃止済みコード（将来削除予定） ----
-    event_callback_info = args[-1] if args else None
-    try:
-        doc = FreeCAD.ActiveDocument
-        if not doc or not event_callback_info:
-            if doc:
-                from ThermalAnalysis.modeling import core
-                core.clear_hover_label(doc)
-            return
-        enabled, throttle_ms = _get_hover_prefs()
-        if not enabled:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        now = time.time()
-        throttle_sec = throttle_ms / 1000.0
-        if now - _hover_state["last_time"] < throttle_sec:
-            return
-        _hover_state["last_time"] = now
-        if isinstance(event_callback_info, dict):
-            pos = event_callback_info.get("Position") or (event_callback_info.get("x"), event_callback_info.get("y"))
-        else:
-            pos = getattr(event_callback_info, "Position", None) or (getattr(event_callback_info, "x", None), getattr(event_callback_info, "y", None))
-        if not pos or pos[0] is None or pos[1] is None:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        # アクティブビュー取得（MultiView 環境などで ActiveView が None の場合に備えてドキュメント名からも取得）
-        view = None
-        try:
-            view = FreeCADGui.ActiveDocument.ActiveView
-        except Exception:
-            view = None
-        if (not view or not hasattr(view, "getObjectInfo")) and doc:
-            try:
-                gui_doc = FreeCADGui.getDocument(doc.Name)
-                if gui_doc:
-                    view = getattr(gui_doc, "ActiveView", view)
-            except Exception:
-                pass
-        if not view:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        get_info = getattr(view, "getObjectInfo", None)
-        if not get_info and hasattr(view, "getViewer"):
-            viewer = view.getViewer()
-            if viewer:
-                get_info = getattr(viewer, "getObjectInfo", None)
-        if not get_info:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        pos_tuple = (int(pos[0]), int(pos[1])) if pos else (0, 0)
-        info = None
-        try:
-            info = get_info(pos_tuple)
-        except Exception:
-            try:
-                info = get_info(pos_tuple[0], pos_tuple[1]) if len(pos_tuple) >= 2 else None
-            except Exception:
-                pass
-        if not info or not isinstance(info, dict):
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        obj_name = (info.get("Object") or info.get("ObjectName") or info.get("PickedObject") or info.get("Name"))
-        doc_name = info.get("Document") or info.get("DocumentName")
-        if not doc_name and doc:
-            doc_name = doc.Name
-        if not obj_name or not doc_name:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        target_doc = FreeCAD.getDocument(doc_name) if doc_name else doc
-        obj = target_doc.getObject(obj_name) if target_doc else None
-        if not obj:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(doc)
-            return
-        from ThermalAnalysis.modeling import core
-        display_obj, surf, node = core.resolve_hover_object(target_doc, obj)
-        # デバッグ用ログ（ユーザ設定 HoverLabelDebugEnabled が True のときのみ）
-        try:
-            p = FreeCAD.ParamGet("User parameter:Base/App/Preferences/Mod/ThermalAnalysis")
-            if p.GetBool("HoverLabelDebugEnabled", False):
-                FreeCAD.Console.PrintMessage(
-                    f"ThermalAnalysis hover: viewObj={obj_name}, surf={surf}, node={node}, infoKeys={list(info.keys())}\n"
-                )
-        except Exception:
-            pass
-        if display_obj is None or (surf is None and node is None):
-            core.clear_hover_label(doc)
-            return
-        pos_mm = core.get_hover_label_position_for_object(display_obj)
-        if pos_mm is None:
-            core.clear_hover_label(doc)
-            return
-        parts = []
-        if surf is not None:
-            parts.append("SF No. {}".format(surf))
-        if node is not None:
-            parts.append("Node No. {}".format(node))
-        text = " / ".join(parts)
-        core.update_hover_label(doc, text, pos_mm, size_mm=8.0)
-    except Exception:
-        try:
-            from ThermalAnalysis.modeling import core
-            core.clear_hover_label(FreeCAD.ActiveDocument)
-        except Exception:
-            pass
 
 
 class _TreeContextMenuFilter(QtCore.QObject):
@@ -331,7 +210,7 @@ class _TreeContextMenuFilter(QtCore.QObject):
             if doc:
                 FreeCADGui.Selection.clearSelection()
                 FreeCADGui.Selection.addSelection(doc, o.Name)
-                from ThermalAnalysis.gui.panels import EditPropertiesTaskPanel
+                from orbitherm_studio.gui.panels import EditPropertiesTaskPanel
                 panel = EditPropertiesTaskPanel()
                 FreeCADGui.Control.showDialog(panel)
             return True
@@ -372,7 +251,7 @@ def _agent_debug_log(hypothesis_id, location, message, data=None, run_id="initia
         # UserAppDataDir を優先して安定した場所に書き込む。
         try:
             import FreeCAD
-            base_dir = os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+            base_dir = os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
         except Exception:
             base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
         log_path = os.path.join(base_dir, "debug-db71c7.log")
@@ -395,8 +274,8 @@ class ThermalAnalysis_Modeling_PrepareModel:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis": return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"): return p
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
     def GetResources(self):
         workbench_path = self._get_path()
         icon_path = os.path.join(workbench_path, "Resources", "icons", "RadiationAnalysis_PrepareModel_Icon.svg")
@@ -420,8 +299,8 @@ class ThermalAnalysis_Modeling_PrepareModel:
                 run_id="initial",
             )
         # #endregion
-        from ThermalAnalysis.gui.panels import PrepareModelDialog
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.gui.panels import PrepareModelDialog
+        from orbitherm_studio.modeling import core
         dlg = PrepareModelDialog()
         if not dlg.exec_():
             return
@@ -471,9 +350,9 @@ class ThermalAnalysis_Modeling_Defeaturing:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis":
+            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
 
     def GetResources(self):
         workbench_path = self._get_path()
@@ -485,8 +364,8 @@ class ThermalAnalysis_Modeling_Defeaturing:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import DefeaturingDialog
-        from ThermalAnalysis.modeling import defeaturing
+        from orbitherm_studio.gui.panels import DefeaturingDialog
+        from orbitherm_studio.modeling import defeaturing
         dlg = DefeaturingDialog()
         if not dlg.exec_():
             return
@@ -515,9 +394,9 @@ class ThermalAnalysis_Modeling_DefeaturingSelected:
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis":
+            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"):
                 return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
 
     def GetResources(self):
         workbench_path = self._get_path()
@@ -529,7 +408,7 @@ class ThermalAnalysis_Modeling_DefeaturingSelected:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling import defeaturing
+        from orbitherm_studio.modeling import defeaturing
         defeaturing.run_defeaturing_selected_faces()
 
     def IsActive(self):
@@ -559,7 +438,7 @@ class ThermalAnalysis_Modeling_EditProperties:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import EditPropertiesTaskPanel
+        from orbitherm_studio.gui.panels import EditPropertiesTaskPanel
         self.panel = EditPropertiesTaskPanel()
         FreeCADGui.Control.showDialog(self.panel)
     def IsActive(self):
@@ -577,7 +456,7 @@ class ThermalAnalysis_Modeling_BulkSetProperties:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import BulkPropertiesDialog
+        from orbitherm_studio.gui.panels import BulkPropertiesDialog
         dlg = BulkPropertiesDialog()
         dlg.exec_()
 
@@ -594,7 +473,7 @@ class ThermalAnalysis_Modeling_ManageMaterials:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import MaterialEditorDialog
+        from orbitherm_studio.gui.panels import MaterialEditorDialog
         self.dialog = MaterialEditorDialog()
         self.dialog.exec_()
 
@@ -606,19 +485,19 @@ class ThermalAnalysis_Modeling_ManageMaterials:
 # --- コマンド4,5,6 (可視化) ---
 class ThermalAnalysis_Modeling_VisualizeActiveSide:
     def GetResources(self): return {'MenuText': "アクティブ面 表示", 'ToolTip': "アクティブ面の設定に応じて色分け表示します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.visualize_active_side()
+    def Activated(self): from orbitherm_studio.modeling import core; core.visualize_active_side()
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 class ThermalAnalysis_Modeling_VisualizeAbsorptivity:
     def GetResources(self): return {'MenuText': "吸収率 表示", 'ToolTip': "太陽光吸収率をコンター表示します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.visualize_property_contour("SolarAbsorptivity", "太陽光吸収率")
+    def Activated(self): from orbitherm_studio.modeling import core; core.visualize_property_contour("SolarAbsorptivity", "太陽光吸収率")
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 class ThermalAnalysis_Modeling_VisualizeEmissivity:
     def GetResources(self): return {'MenuText': "放射率 表示", 'ToolTip': "赤外放射率をコンター表示します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.visualize_property_contour("InfraredEmissivity", "赤外放射率")
+    def Activated(self): from orbitherm_studio.modeling import core; core.visualize_property_contour("InfraredEmissivity", "赤外放射率")
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 class ThermalAnalysis_Modeling_VisualizeTransmittance:
     def GetResources(self): return {'MenuText': "透過率 表示", 'ToolTip': "透過率をコンター表示します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.visualize_property_contour("Transmittance", "透過率")
+    def Activated(self): from orbitherm_studio.modeling import core; core.visualize_property_contour("Transmittance", "透過率")
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 class ThermalAnalysis_Modeling_RestoreDefaultDisplay:
     def GetResources(self):
@@ -627,7 +506,7 @@ class ThermalAnalysis_Modeling_RestoreDefaultDisplay:
             'ToolTip': "アクティブ面・吸収率・放射率・透過率の色分けをやめ、全面をデフォルト色に戻します。",
         }
     def Activated(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.restore_default_display()
     def IsActive(self):
         return FreeCAD.ActiveDocument is not None
@@ -640,7 +519,7 @@ class ThermalAnalysis_Modeling_DisplayOptions:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import DisplayOptionsDialog
+        from orbitherm_studio.gui.panels import DisplayOptionsDialog
         dlg = DisplayOptionsDialog()
         dlg.exec_()
 
@@ -657,7 +536,7 @@ class ThermalAnalysis_DisplayParametersSettings:
         }
 
     def Activated(self):
-        from ThermalAnalysis.gui.panels import DisplayParametersSettingsDialog
+        from orbitherm_studio.gui.panels import DisplayParametersSettingsDialog
         dlg = DisplayParametersSettingsDialog()
         dlg.exec_()
 
@@ -665,48 +544,15 @@ class ThermalAnalysis_DisplayParametersSettings:
         return True
 
 
-# --- ホバー表示のオン/オフ ---
-class ThermalAnalysis_ToggleHoverLabel:
-    def GetResources(self):
-        return {
-            "MenuText": "面・ノード番号のホバー表示",
-            "ToolTip": "3Dビューでマウスを重ねたときの面・ノード番号表示をオン/オフします。複雑な形状で重い場合はオフにすると軽くなります。",
-        }
-
-    def Activated(self):
-        p = FreeCAD.ParamGet("User parameter:Base/App/Preferences/Mod/ThermalAnalysis")
-        current = p.GetBool("HoverLabelEnabled", True)
-        p.SetBool("HoverLabelEnabled", not current)
-        if not current:
-            FreeCAD.Console.PrintMessage("ThermalAnalysis: 面・ノード番号のホバー表示をオンにしました。\n")
-        else:
-            try:
-                doc = FreeCAD.ActiveDocument
-                if doc:
-                    from ThermalAnalysis.modeling import core
-                    core.clear_hover_label(doc)
-            except Exception:
-                pass
-            FreeCAD.Console.PrintMessage("ThermalAnalysis: 面・ノード番号のホバー表示をオフにしました。\n")
-
-    def IsActive(self):
-        return True
-
-    def GetState(self):
-        """チェック可能メニュー用: オンなら 1、オフなら 0。"""
-        p = FreeCAD.ParamGet("User parameter:Base/App/Preferences/Mod/ThermalAnalysis")
-        return 1 if p.GetBool("HoverLabelEnabled", True) else 0
-
-
 # --- コマンド7: 熱容量計算 ---
 class ThermalAnalysis_Modeling_CalculateThermalMass:
     def GetResources(self): return {'MenuText': "熱容量計算", 'ToolTip': "設定された物性値から各ノードの熱容量を計算します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.calculate_thermal_mass()
+    def Activated(self): from orbitherm_studio.modeling import core; core.calculate_thermal_mass()
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 # --- コマンド8: 伝熱コンダクタンス計算 ---
 class ThermalAnalysis_Modeling_CalculateConductance:
     def GetResources(self): return {'MenuText': "伝熱コンダクタンス計算", 'ToolTip': "隣接するメッシュ間の伝熱コンダクタンスを計算します。"}
-    def Activated(self): from ThermalAnalysis.modeling import core; core.calculate_conductance()
+    def Activated(self): from orbitherm_studio.modeling import core; core.calculate_conductance()
     def IsActive(self): return FreeCAD.ActiveDocument is not None
 # --- コマンド8b: 輻射コンダクタンス計算 ---
 class ThermalAnalysis_Modeling_CalculateRadiationConductance:
@@ -716,8 +562,8 @@ class ThermalAnalysis_Modeling_CalculateRadiationConductance:
             "ToolTip": "レイトレーシングでビューファクターを計算し、輻射コンダクタンス係数 R'=ε×Vf×A を計算します。空間への輻射は SPACE.9999 ノードとして出力します。",
         }
     def Activated(self):
-        from ThermalAnalysis.modeling import core
-        from ThermalAnalysis.gui.panels import RadiationParamsDialog
+        from orbitherm_studio.modeling import core
+        from orbitherm_studio.gui.panels import RadiationParamsDialog
         dlg = RadiationParamsDialog()
         if not dlg.exec_():
             return
@@ -735,7 +581,7 @@ class ThermalAnalysis_Modeling_AddConductance:
         }
 
     def Activated(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         from PySide import QtGui
         sel = FreeCADGui.Selection.getSelection()
         if len(sel) != 2:
@@ -783,8 +629,8 @@ class ThermalAnalysis_Modeling_ThermalModelExport:
 
     def Activated(self):
         import FreeCAD
-        from ThermalAnalysis.modeling import core
-        from ThermalAnalysis.gui.panels import ThermalModelExportDialog
+        from orbitherm_studio.modeling import core
+        from orbitherm_studio.gui.panels import ThermalModelExportDialog
         try:
             from PySide2 import QtWidgets
         except ImportError:
@@ -796,7 +642,7 @@ class ThermalAnalysis_Modeling_ThermalModelExport:
         dlg = ThermalModelExportDialog()
         if not dlg.exec_():
             return
-        from ThermalAnalysis.modeling.freecad_utils import get_default_export_dir
+        from orbitherm_studio.modeling.freecad_utils import get_default_export_dir
         _dir = get_default_export_dir()
         _start = os.path.join(_dir, "thermal_model.inp") if _dir else "thermal_model.inp"
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -825,8 +671,8 @@ class ThermalAnalysis_Modeling_SubdivideSurface:
     def GetResources(self):
         return {'MenuText': "サーフェースを分割", 'ToolTip': "選択したFaceGroupのメッシュをグリッドで分割し、サブサーフェースとノードを作成します。"}
     def Activated(self):
-        from ThermalAnalysis.gui.panels import SubdivideSurfaceDialog
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.gui.panels import SubdivideSurfaceDialog
+        from orbitherm_studio.modeling import core
         dlg = SubdivideSurfaceDialog()
         if not dlg.exec_():
             return
@@ -867,7 +713,7 @@ class ThermalAnalysis_Post_PostProcessing:
             from PySide2 import QtWidgets
         except ImportError:
             from PySide import QtGui as QtWidgets
-        from ThermalAnalysis.gui.panels import PostProcessingDialog
+        from orbitherm_studio.gui.panels import PostProcessingDialog
         doc = FreeCAD.ActiveDocument
         if not doc:
             QtWidgets.QMessageBox.warning(None, "Post Processing", "アクティブなドキュメントがありません。")
@@ -897,12 +743,12 @@ class ThermalAnalysis_Orbit_CalcHeatAndVisualize:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.gui.orbit_gui import OrbitEnvironmentDialog
-        from ThermalAnalysis.orbit_heat import orbit_core, orbit_visualization
+        from orbitherm_studio.gui.orbit_gui import OrbitEnvironmentDialog
+        from orbitherm_studio.orbit_heat import orbit_core, orbit_visualization
         doc = FreeCAD.ActiveDocument
         if not doc:
             QtGui.QMessageBox.warning(
-                None, "ThermalAnalysis", "アクティブなドキュメントがありません。"
+                None, "Orbitherm Studio", "アクティブなドキュメントがありません。"
             )
             return
 
@@ -941,7 +787,7 @@ class ThermalAnalysis_Orbit_CalcHeatAndVisualize:
             return
 
         QtGui.QMessageBox.information(
-            None, "ThermalAnalysis",
+            None, "Orbitherm Studio",
             "軌道を描画しました。\n確認後、メニュー「熱入力 CSV を保存」で CSV を保存できます。",
         )
 
@@ -958,17 +804,17 @@ class ThermalAnalysis_Orbit_SaveHeatArrayCSV:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.orbit_heat import orbit_core
+        from orbitherm_studio.orbit_heat import orbit_core
 
         data = orbit_core.get_last_heat_data()
         if not data:
             QtGui.QMessageBox.information(
-                None, "ThermalAnalysis",
+                None, "Orbitherm Studio",
                 "保存するデータがありません。\n先に「軌道計算と描画」を実行してください。",
             )
             return
         times, heat_array, meta = data
-        from ThermalAnalysis.modeling.freecad_utils import get_default_export_dir
+        from orbitherm_studio.modeling.freecad_utils import get_default_export_dir
         _dir = get_default_export_dir()
         _start = os.path.join(_dir, "heat_array.csv") if _dir else "heat_array.csv"
         path, _ = QtGui.QFileDialog.getSaveFileName(
@@ -979,7 +825,7 @@ class ThermalAnalysis_Orbit_SaveHeatArrayCSV:
             return
         try:
             orbit_core.export_heat_array_csv(path, times, heat_array, meta)
-            QtGui.QMessageBox.information(None, "ThermalAnalysis", "保存しました:\n{}".format(path))
+            QtGui.QMessageBox.information(None, "Orbitherm Studio", "保存しました:\n{}".format(path))
         except Exception as e:
             QtGui.QMessageBox.critical(None, "ThermalAnalysis CSV 出力エラー", str(e))
 
@@ -996,8 +842,8 @@ class ThermalAnalysis_Orbit_ExportHeatArrayOnly:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.gui.orbit_gui import OrbitEnvironmentDialog
-        from ThermalAnalysis.orbit_heat import orbit_core
+        from orbitherm_studio.gui.orbit_gui import OrbitEnvironmentDialog
+        from orbitherm_studio.orbit_heat import orbit_core
 
         dlg = OrbitEnvironmentDialog()
         if dlg.exec_() != QtGui.QDialog.Accepted:
@@ -1011,7 +857,7 @@ class ThermalAnalysis_Orbit_ExportHeatArrayOnly:
         except Exception as e:
             QtGui.QMessageBox.critical(None, "ThermalAnalysis 計算エラー", str(e))
             return
-        from ThermalAnalysis.modeling.freecad_utils import get_default_export_dir
+        from orbitherm_studio.modeling.freecad_utils import get_default_export_dir
         _dir = get_default_export_dir()
         _start = os.path.join(_dir, "heat_array.csv") if _dir else "heat_array.csv"
         path, _ = QtGui.QFileDialog.getSaveFileName(
@@ -1022,7 +868,7 @@ class ThermalAnalysis_Orbit_ExportHeatArrayOnly:
             return
         try:
             orbit_core.export_heat_array_csv(path, times, heat_array, meta)
-            QtGui.QMessageBox.information(None, "ThermalAnalysis", "保存しました:\n{}".format(path))
+            QtGui.QMessageBox.information(None, "Orbitherm Studio", "保存しました:\n{}".format(path))
         except Exception as e:
             QtGui.QMessageBox.critical(None, "ThermalAnalysis CSV 出力エラー", str(e))
 
@@ -1044,7 +890,7 @@ class ThermalAnalysis_Orbit_ClearVisualization:
             return
         group = doc.getObject("OrbitVisualization")
         if not group:
-            QtGui.QMessageBox.information(None, "ThermalAnalysis", "OrbitVisualization グループが見つかりません。")
+            QtGui.QMessageBox.information(None, "Orbitherm Studio", "OrbitVisualization グループが見つかりません。")
             return
         for obj in list(getattr(group, "Group", []) or []):
             try:
@@ -1056,7 +902,7 @@ class ThermalAnalysis_Orbit_ClearVisualization:
         except Exception:
             pass
         doc.recompute()
-        QtGui.QMessageBox.information(None, "ThermalAnalysis", "OrbitVisualization をクリアしました。")
+        QtGui.QMessageBox.information(None, "Orbitherm Studio", "OrbitVisualization をクリアしました。")
 
 
 class ThermalAnalysis_Orbit_StepOrbitFrames:
@@ -1070,7 +916,7 @@ class ThermalAnalysis_Orbit_StepOrbitFrames:
         return FreeCAD.ActiveDocument is not None
 
     def Activated(self):
-        from ThermalAnalysis.gui.orbit_step_dialog import OrbitStepDialog
+        from orbitherm_studio.gui.orbit_step_dialog import OrbitStepDialog
         dlg = OrbitStepDialog()
         dlg.exec_()
 
@@ -1087,19 +933,19 @@ class ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation:
 
     def Activated(self):
         from PySide import QtGui
-        from ThermalAnalysis.orbit_heat import orbit_core, orbit_radiation
-        from ThermalAnalysis.bridge import orbit_heat_bridge as bridge
+        from orbitherm_studio.orbit_heat import orbit_core, orbit_radiation
+        from orbitherm_studio.bridge import orbit_heat_bridge as bridge
 
         state = orbit_core.get_last_orbit_state()
         if not state:
             QtGui.QMessageBox.information(
-                None, "ThermalAnalysis",
+                None, "Orbitherm Studio",
                 "軌道データがありません。先に「軌道計算と描画」を実行してください。",
             )
             return
         times, _, attitude_mode, orbit_input, heat_array = state
         if heat_array is None or len(times) == 0:
-            QtGui.QMessageBox.warning(None, "ThermalAnalysis", "熱入力データがありません。")
+            QtGui.QMessageBox.warning(None, "Orbitherm Studio", "熱入力データがありません。")
             return
         doc = FreeCAD.ActiveDocument
         if not doc:
@@ -1108,13 +954,13 @@ class ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation:
             surfaces = bridge.get_surfaces_for_orbit_heat(doc)
         except Exception as e:
             QtGui.QMessageBox.critical(
-                None, "ThermalAnalysis",
+                None, "Orbitherm Studio",
                 "輻射モデルの取得に失敗しました:\n{}".format(e),
             )
             return
         if not surfaces:
             QtGui.QMessageBox.information(
-                None, "ThermalAnalysis",
+                None, "Orbitherm Studio",
                 "ドキュメントに輻射モデル（FaceGroup）がありません。モデリングでモデルを準備してください。",
             )
             return
@@ -1128,7 +974,7 @@ class ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation:
         except Exception as e:
             QtGui.QMessageBox.critical(None, "ThermalAnalysis 適用エラー", str(e))
             return
-        from ThermalAnalysis.modeling.freecad_utils import get_default_export_dir
+        from orbitherm_studio.modeling.freecad_utils import get_default_export_dir
         _dir = get_default_export_dir()
         _start = os.path.join(_dir, "orbit_face_heat.csv") if _dir else "orbit_face_heat.csv"
         path, _ = QtGui.QFileDialog.getSaveFileName(
@@ -1139,45 +985,34 @@ class ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation:
             try:
                 orbit_radiation.export_face_heat_csv(path, results)
                 QtGui.QMessageBox.information(
-                    None, "ThermalAnalysis", "HeatSource を更新し、CSV を保存しました:\n{}".format(path),
+                    None, "Orbitherm Studio", "HeatSource を更新し、CSV を保存しました:\n{}".format(path),
                 )
             except Exception as e:
-                QtGui.QMessageBox.warning(None, "ThermalAnalysis", "CSV 保存に失敗:\n{}".format(e))
+                QtGui.QMessageBox.warning(None, "Orbitherm Studio", "CSV 保存に失敗:\n{}".format(e))
         else:
             QtGui.QMessageBox.information(
-                None, "ThermalAnalysis", "輻射モデルのノードに軌道平均熱入力を適用しました。",
+                None, "Orbitherm Studio", "輻射モデルのノードに軌道平均熱入力を適用しました。",
             )
-
-
-# ===================================================================================
-# アクティブドキュメント切り替え時にホバーコールバックを再登録するオブザーバー
-class _HoverDocObserver:
-    _workbench_class = None
-
-    def slotActivatedDocument(self, doc):
-        if getattr(self, "_workbench_class", None) and FreeCAD.GuiUp:
-            QtCore.QTimer.singleShot(100, lambda: self._workbench_class._register_hover_on_active_view())
 
 
 # === ワークベンチクラスの定義
 # ===================================================================================
-class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
-    MenuText = "熱解析"; ToolTip = "熱解析（モデリング・軌道熱）"
+class OrbithermWorkbench(FreeCADGui.Workbench):
+    """Orbitherm Studio — FreeCAD-based thermal modeling workbench."""
+    MenuText = "Orbitherm"; ToolTip = "Orbitherm Studio — FreeCADベース熱解析モデリング環境"
     _ra_tree_view = None
     _ra_tree_filter = None
     _ra_tree_context_menu_saved = None  # 復元用に元の contextMenuPolicy を保存
-    _ra_hover_callback_id = None
-    _ra_hover_view = None  # コールバックを登録したビュー（解除時に同じビューから外すため）
 
     @staticmethod
     def _get_path():
         for p in sys.path:
-            if os.path.basename(p) == "ThermalAnalysis": return p
-        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "ThermalAnalysis")
+            if os.path.basename(p) in ("orbitherm_studio", "ThermalAnalysis"): return p
+        return os.path.join(FreeCAD.getUserAppDataDir(), "Mod", "orbitherm_studio")
     def __init__(self):
         super().__init__()
         workbench_path = self._get_path()
-        self.Icon = os.path.join(workbench_path, "Resources", "icons", "RadiationAnalysis_Workbench_Icon.svg")
+        self.Icon = os.path.join(workbench_path, "Resources", "icons", "Orbitherm_Workbench_Icon.svg")
     def Initialize(self):
         # ツールバー: 表示は「表示設定」のみ（ダイアログで排他選択）
         self.list = [
@@ -1188,8 +1023,8 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
             'ThermalAnalysis_Modeling_CalculateRadiationConductance', 'ThermalAnalysis_Modeling_AddConductance',
             'ThermalAnalysis_Modeling_ThermalModelExport', 'ThermalAnalysis_Post_PostProcessing',
         ]
-        self.appendToolbar("ThermalModeling", self.list)
-        # メニュー ThermalModeling（表示設定を直下に含む）、OrbitAnalysis、ポスト
+        self.appendToolbar("Modeling", self.list)
+        # メニュー Modeling（表示設定を直下に含む）、Orbit Heat、Solver、Post
         _modeling_main = [
             "ThermalAnalysis_Modeling_PrepareModel", "ThermalAnalysis_Modeling_Defeaturing", "ThermalAnalysis_Modeling_DefeaturingSelected", "ThermalAnalysis_Modeling_EditProperties", "ThermalAnalysis_Modeling_BulkSetProperties",
             "ThermalAnalysis_Modeling_ManageMaterials", "ThermalAnalysis_Modeling_SubdivideSurface",
@@ -1198,73 +1033,16 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
             "ThermalAnalysis_Modeling_CalculateRadiationConductance", "ThermalAnalysis_Modeling_AddConductance",
             "ThermalAnalysis_Modeling_ThermalModelExport", "ThermalAnalysis_Post_PostProcessing",
         ]
-        self.appendMenu("ThermalModeling", _modeling_main)
+        self.appendMenu("Modeling", _modeling_main)
         _orbit_commands = ["ThermalAnalysis_Orbit_CalcHeatAndVisualize", "ThermalAnalysis_Orbit_StepOrbitFrames", "ThermalAnalysis_Orbit_SaveHeatArrayCSV", "ThermalAnalysis_Orbit_ExportHeatArrayOnly", "ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation", "ThermalAnalysis_Orbit_ClearVisualization"]
-        self.appendToolbar("OrbitAnalysis", _orbit_commands)
-        self.appendMenu("OrbitAnalysis", _orbit_commands)
-        self.appendMenu("ソルバー", [])
+        self.appendToolbar("Orbit Heat", _orbit_commands)
+        self.appendMenu("Orbit Heat", _orbit_commands)
+        self.appendMenu("Solver", [])
         _post_commands = ["ThermalAnalysis_Post_PostProcessing"]
-        self.appendMenu("ポスト", _post_commands)
-        # コールバック時別スコープで実行されるため、参照はクラス属性で保持（モジュール読み込み時に設定）
-        FreeCAD.Console.PrintMessage("ThermalAnalysis ワークベンチが初期化されました。\n")
-        # ワークベンチに依存しないホバー登録：既にドキュメントが開いていれば登録する（lambda 内でクラス名を参照しないよう self.__class__ をキャプチャ）
-        from PySide import QtCore
-        _workbench_class = self.__class__
-        QtCore.QTimer.singleShot(0, lambda: _workbench_class._register_hover_on_active_view())
-        # アクティブドキュメント切り替え時にもホバーを登録（後からドキュメントを開いた場合に対応）
-        cls = self.__class__
-        if not getattr(cls, "_ra_hover_observer_added", False):
-            try:
-                _HoverDocObserver._workbench_class = _workbench_class
-                FreeCAD.addDocumentObserver(_HoverDocObserver())
-                cls._ra_hover_observer_added = True
-            except Exception:
-                pass
-    @classmethod
-    def _register_hover_on_active_view(cls):
-        """現在の3Dビューにホバー番号表示コールバックを登録する（ワークベンチ非依存）。"""
-        try:
-            if cls._ra_hover_callback_id is not None and cls._ra_hover_view is not None:
-                try:
-                    if hasattr(cls._ra_hover_view, "removeEventCallback"):
-                        cls._ra_hover_view.removeEventCallback("SoLocation2Event", cls._ra_hover_callback_id)
-                except Exception:
-                    pass
-                cls._ra_hover_callback_id = None
-                cls._ra_hover_view = None
-            view = FreeCADGui.ActiveDocument.ActiveView if (FreeCAD.ActiveDocument and FreeCADGui.ActiveDocument) else None
-            target = None
-            if view and hasattr(view, "addEventCallback"):
-                target = view
-            elif view and hasattr(view, "getViewer"):
-                try:
-                    viewer = view.getViewer()
-                except Exception:
-                    viewer = None
-                if viewer and hasattr(viewer, "addEventCallback"):
-                    target = viewer
-            if target:
-                try:
-                    cid = target.addEventCallback("SoLocation2Event", cls._ra_hover_callback_fn)
-                    cls._ra_hover_callback_id = cid
-                    cls._ra_hover_view = target
-                    FreeCAD.Console.PrintMessage(f"ThermalAnalysis: ホバーコールバックを登録しました (target={target}, cid={cid}).\n")
-                except Exception as e:
-                    FreeCAD.Console.PrintWarning(f"ThermalAnalysis: ホバーコールバック登録に失敗しました: {e}\n")
-                    cls._ra_hover_callback_id = None
-                    cls._ra_hover_view = None
-            else:
-                FreeCAD.Console.PrintWarning("ThermalAnalysis: ホバー用の 3D ビュー/ビューワーが見つからないか、addEventCallback に対応していません。\n")
-                cls._ra_hover_callback_id = None
-                cls._ra_hover_view = None
-        except Exception:
-            cls._ra_hover_callback_id = None
-            cls._ra_hover_view = None
+        self.appendMenu("Post", _post_commands)
+        FreeCAD.Console.PrintMessage("Orbitherm Studio ワークベンチが初期化されました。\n")
     def Activated(self):
-        from PySide import QtCore
         cls = self.__class__
-        # 3Dビューのマウス移動でホバー番号表示（現在ビューに登録。他ワークベンチに切り替えても解除しない）
-        cls._register_hover_on_active_view()
         find_tree = getattr(self.__class__, "_find_tree_view_fn", None)
         if find_tree is None:
             return
@@ -1327,9 +1105,11 @@ class ThermalAnalysisWorkbench(FreeCADGui.Workbench):
 
 
 # コールバックが別スコープで実行されても参照できるようクラス属性をモジュール読み込み時に設定
-ThermalAnalysisWorkbench._find_tree_view_fn = _find_tree_view
-ThermalAnalysisWorkbench._TreeContextMenuFilter_class = _TreeContextMenuFilter
-ThermalAnalysisWorkbench._ra_hover_callback_fn = _hover_callback
+OrbithermWorkbench._find_tree_view_fn = _find_tree_view
+OrbithermWorkbench._TreeContextMenuFilter_class = _TreeContextMenuFilter
+
+# 後方互換エイリアス（既存の参照が壊れないよう維持）
+ThermalAnalysisWorkbench = OrbithermWorkbench
 
 
 # _LegacyRadiationCommandAlias は gui/commands.py に移動済み。
@@ -1395,8 +1175,8 @@ class _LegacyRadiationCommandAlias:
 # === コマンドクラスを gui/commands.py から再インポート（正規の定義元）
 # 上で定義したローカルクラスを上書きし、gui/commands.py を単一の定義源にする。
 # ===================================================================================
-from ThermalAnalysis.gui.commands import *  # noqa: F401, F403
-from ThermalAnalysis.gui.commands import _LegacyRadiationCommandAlias  # noqa: F401
+from orbitherm_studio.gui.commands import *  # noqa: F401, F403
+from orbitherm_studio.gui.commands import _LegacyRadiationCommandAlias  # noqa: F401
 
 
 # ===================================================================================
@@ -1432,7 +1212,6 @@ try:
     FreeCADGui.addCommand('ThermalAnalysis_Modeling_SubdivideSurface', ThermalAnalysis_Modeling_SubdivideSurface())
     FreeCADGui.addCommand('ThermalAnalysis_Modeling_DisplayOptions', ThermalAnalysis_Modeling_DisplayOptions())
     FreeCADGui.addCommand('ThermalAnalysis_DisplayParametersSettings', ThermalAnalysis_DisplayParametersSettings())
-    FreeCADGui.addCommand('ThermalAnalysis_ToggleHoverLabel', ThermalAnalysis_ToggleHoverLabel())
     FreeCADGui.addCommand('ThermalAnalysis_Modeling_AddConductance', ThermalAnalysis_Modeling_AddConductance())
     FreeCADGui.addCommand('ThermalAnalysis_Post_PostProcessing', ThermalAnalysis_Post_PostProcessing())
     FreeCADGui.addCommand('ThermalAnalysis_Orbit_CalcHeatAndVisualize', ThermalAnalysis_Orbit_CalcHeatAndVisualize())
@@ -1486,17 +1265,17 @@ try:
             continue
         FreeCADGui.addCommand(old_name, _LegacyRadiationCommandAlias(new_name))
 
-    # ThermalAnalysisWorkbench の登録（既に存在する場合はスキップ）
+    # OrbithermWorkbench の登録（既に存在する場合はスキップ）
     try:
         wbs = getattr(FreeCADGui, "listWorkbenches", lambda: {})()
-        if isinstance(wbs, dict) and "ThermalAnalysisWorkbench" in wbs:
+        if isinstance(wbs, dict) and ("OrbithermWorkbench" in wbs or "ThermalAnalysisWorkbench" in wbs):
             pass
         else:
-            FreeCADGui.addWorkbench(ThermalAnalysisWorkbench())
+            FreeCADGui.addWorkbench(OrbithermWorkbench())
     except Exception:
         # 古い FreeCAD などで listWorkbenches が無い場合は従来通り登録を試みる
         try:
-            FreeCADGui.addWorkbench(ThermalAnalysisWorkbench())
+            FreeCADGui.addWorkbench(OrbithermWorkbench())
         except Exception:
             pass
 except Exception as e:

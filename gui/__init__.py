@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-ThermalAnalysis GUI サブパッケージ。
+Orbitherm Studio — GUI サブパッケージ (ThermalAnalysis.gui)。
 全 Qt ダイアログ・タスクパネル・FreeCAD コマンドクラスをここから import できる。
 """
 
-from ThermalAnalysis.gui.commands import (
+from orbitherm_studio.gui.commands import (
     ThermalAnalysis_Modeling_PrepareModel,
     ThermalAnalysis_Modeling_Defeaturing,
     ThermalAnalysis_Modeling_DefeaturingSelected,
@@ -18,7 +18,6 @@ from ThermalAnalysis.gui.commands import (
     ThermalAnalysis_Modeling_RestoreDefaultDisplay,
     ThermalAnalysis_Modeling_DisplayOptions,
     ThermalAnalysis_DisplayParametersSettings,
-    ThermalAnalysis_ToggleHoverLabel,
     ThermalAnalysis_Modeling_CalculateThermalMass,
     ThermalAnalysis_Modeling_CalculateConductance,
     ThermalAnalysis_Modeling_CalculateRadiationConductance,
@@ -34,7 +33,7 @@ from ThermalAnalysis.gui.commands import (
     ThermalAnalysis_Orbit_ApplyOrbitHeatToRadiation,
     _LegacyRadiationCommandAlias,
 )
-from ThermalAnalysis.gui.panels import (
+from orbitherm_studio.gui.panels import (
     EditPropertiesTaskPanel,
     BulkPropertiesDialog,
     MaterialEditorDialog,
@@ -47,12 +46,12 @@ from ThermalAnalysis.gui.panels import (
     PostProcessingDialog,
     SubdivideSurfaceDialog,
 )
-from ThermalAnalysis.gui.orbit_gui import (
+from orbitherm_studio.gui.orbit_gui import (
     OrbitEnvironmentDialog,
     load_tle_presets,
     save_tle_presets,
 )
-from ThermalAnalysis.gui.orbit_step_dialog import OrbitStepDialog
+from orbitherm_studio.gui.orbit_step_dialog import OrbitStepDialog
 
 __all__ = [
     # コマンドクラス
@@ -69,7 +68,6 @@ __all__ = [
     "ThermalAnalysis_Modeling_RestoreDefaultDisplay",
     "ThermalAnalysis_Modeling_DisplayOptions",
     "ThermalAnalysis_DisplayParametersSettings",
-    "ThermalAnalysis_ToggleHoverLabel",
     "ThermalAnalysis_Modeling_CalculateThermalMass",
     "ThermalAnalysis_Modeling_CalculateConductance",
     "ThermalAnalysis_Modeling_CalculateRadiationConductance",

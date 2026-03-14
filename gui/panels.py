@@ -1,8 +1,8 @@
-import FreeCAD
+﻿import FreeCAD
 import FreeCADGui
 from PySide import QtCore, QtGui
 
-from ThermalAnalysis.modeling import materials, freecad_utils
+from orbitherm_studio.modeling import materials, freecad_utils
 
 
 def _get_first_optical():
@@ -378,7 +378,7 @@ class EditPropertiesTaskPanel:
         FreeCADGui.Control.closeDialog()
         # ダイアログ閉鎖後に3Dビューを更新（色を反映）
         def _deferred_visualize():
-            from ThermalAnalysis.modeling import core
+            from orbitherm_studio.modeling import core
             core.visualize_active_side()
         QtCore.QTimer.singleShot(0, _deferred_visualize)
         return True
@@ -392,7 +392,7 @@ class BulkPropertiesDialog(QtGui.QDialog):
 
     def __init__(self, parent=None):
         super(BulkPropertiesDialog, self).__init__(parent)
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         self._core = core
         self.setWindowTitle("面の一括プロパティ設定")
         self.setMinimumWidth(400)
@@ -983,7 +983,7 @@ class DisplayOptionsDialog(QtGui.QDialog):
     def showEvent(self, event):
         """ダイアログ表示時に現在の表示状態を反映する。"""
         super(DisplayOptionsDialog, self).showEvent(event)
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         vis_nodes, has_nodes = core.get_node_visibility()
         self._check_nodes.setChecked(vis_nodes)
         self._check_nodes.setEnabled(has_nodes)
@@ -993,61 +993,65 @@ class DisplayOptionsDialog(QtGui.QDialog):
         self._check_radiation.setChecked(vis_rad)
         self._check_conduction.setEnabled(has_cond)
         self._check_radiation.setEnabled(has_rad)
-        # 番号ラベルグループの現在の Visibility を反映
-        import FreeCAD as _FC
-        doc = _FC.ActiveDocument
-        if doc and _FC.GuiUp:
-            surf_group = doc.getObject("RA_SurfaceNumberLabels")
-            node_group = doc.getObject("RA_NodeNumberLabels")
-            surf_vis = bool(surf_group and hasattr(surf_group, "ViewObject")
-                            and getattr(surf_group.ViewObject, "Visibility", False))
-            node_vis = bool(node_group and hasattr(node_group, "ViewObject")
-                            and getattr(node_group.ViewObject, "Visibility", False))
-            self._check_surface_numbers.blockSignals(True)
-            self._check_surface_numbers.setChecked(surf_vis)
-            self._check_surface_numbers.blockSignals(False)
-            self._check_node_numbers.blockSignals(True)
-            self._check_node_numbers.setChecked(node_vis)
-            self._check_node_numbers.blockSignals(False)
+        # Coin3D ラベルの現在の表示状態を反映
+        try:
+            from orbitherm_studio.post import display_labels as _dl
+            surf_vis = _dl.is_face_labels_visible()
+            node_vis = _dl.is_node_labels_visible()
+        except Exception:
+            surf_vis = False
+            node_vis = False
+        self._check_surface_numbers.blockSignals(True)
+        self._check_surface_numbers.setChecked(surf_vis)
+        self._check_surface_numbers.blockSignals(False)
+        self._check_node_numbers.blockSignals(True)
+        self._check_node_numbers.setChecked(node_vis)
+        self._check_node_numbers.blockSignals(False)
 
     def _on_node_toggled(self, checked):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.set_node_visibility(checked)
 
     def _on_conduction_toggled(self, checked):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.set_conduction_conductance_visibility(checked)
 
     def _on_radiation_toggled(self, checked):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.set_radiation_conductance_visibility(checked)
 
     def _on_surface_numbers_toggled(self, checked):
-        from ThermalAnalysis.modeling import core
-        core.run_show_surface_numbers(checked)
+        from orbitherm_studio.post import display_labels
+        if checked:
+            display_labels.show_face_labels()
+        else:
+            display_labels.clear_face_labels()
 
     def _on_node_numbers_toggled(self, checked):
-        from ThermalAnalysis.modeling import core
-        core.run_show_node_numbers(checked)
+        from orbitherm_studio.post import display_labels
+        if checked:
+            display_labels.show_node_labels()
+        else:
+            display_labels.clear_node_labels()
 
     def _on_active(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.visualize_active_side()
 
     def _on_absorptivity(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.visualize_property_contour("SolarAbsorptivity", "太陽光吸収率")
 
     def _on_emissivity(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.visualize_property_contour("InfraredEmissivity", "赤外放射率")
 
     def _on_transmittance(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.visualize_property_contour("Transmittance", "透過率")
 
     def _on_default(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         core.restore_default_display()
 
 
@@ -1418,7 +1422,7 @@ class PostProcessingDialog(QtGui.QDialog):
             self.le_file.setText(path)
 
     def _on_load(self):
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         path = self.le_file.text().strip()
         if not path:
             QtGui.QMessageBox.warning(self, "Post Processing", ".out ファイルを指定してください。")
@@ -1454,7 +1458,7 @@ class PostProcessingDialog(QtGui.QDialog):
     def _on_apply(self):
         if not self._time_data or self.combo_time.currentIndex() < 0:
             return
-        from ThermalAnalysis.modeling import core
+        from orbitherm_studio.modeling import core
         _, node_temps = self._time_data[self.combo_time.currentIndex()]
         t_min = self.spin_t_min.value()
         t_max = self.spin_t_max.value()

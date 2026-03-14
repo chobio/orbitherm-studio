@@ -1,4 +1,5 @@
-# ThermalAnalysis モジュール構成図
+# Orbitherm Studio — モジュール構成図
+<!-- 公式ブランド名: Orbitherm Studio / 内部パッケージ名: ThermalAnalysis -->
 
 最終更新: 2026-03-13
 
@@ -7,7 +8,7 @@
 ## ディレクトリ構造
 
 ```
-ThermalAnalysis/                         ← FreeCAD Mod ルート
+ThermalAnalysis/                         ← FreeCAD Mod ルート（Orbitherm Studio）
 │
 ├── InitGui.py                           ← FreeCAD エントリポイント
 │   ├── ワークベンチ登録・ツールバー/メニュー定義

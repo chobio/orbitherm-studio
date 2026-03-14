@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "orbitherm-studio"
+version = "0.1.0"
+description = "FreeCAD-based thermal modeling workbench for spacecraft and engineering systems."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["FreeCAD", "thermal", "spacecraft", "Orbitherm", "SINDA", "workbench"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/your-org/orbitherm-studio"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["orbitherm_studio*"]
+
+[tool.setuptools.package-data]
+orbitherm_studio = [
+    "Resources/icons/*.svg",
+    "orbit_heat/*.json",
+    "modeling/materials.json",
+]

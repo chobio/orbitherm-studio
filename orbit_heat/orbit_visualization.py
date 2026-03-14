@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from typing import Iterable, Sequence, Tuple
@@ -8,7 +8,7 @@ import Part
 
 import numpy as np
 
-from ThermalAnalysis.orbit_heat import orbit_core, orbit_attitude
+from orbitherm_studio.orbit_heat import orbit_core, orbit_attitude
 
 
 KM_TO_MM = 1.0  # 1 km = 1 mm スケール

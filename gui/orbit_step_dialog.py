@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """軌道コマ送りダイアログ。各計算点での衛星位置・向きを確認する。"""
 
 from __future__ import annotations
@@ -6,7 +6,7 @@ from __future__ import annotations
 import FreeCAD
 from PySide import QtCore, QtGui
 
-from ThermalAnalysis.orbit_heat import orbit_core, orbit_visualization
+from orbitherm_studio.orbit_heat import orbit_core, orbit_visualization
 
 
 class OrbitStepDialog(QtGui.QDialog):
